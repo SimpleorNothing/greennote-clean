@@ -108,6 +108,8 @@
   .link-btn{background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;font-family:inherit;text-decoration:underline;text-underline-offset:3px;}
   .link-btn:hover{color:var(--brand);}
 
+  .update-stamp{position:fixed;left:14px;bottom:12px;font-size:11.5px;color:var(--muted);opacity:.7;z-index:80;pointer-events:none;}
+
   .toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--text);color:#fff;padding:11px 20px;border-radius:999px;font-size:13.5px;font-weight:600;opacity:0;pointer-events:none;transition:.25s;z-index:90;}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 
@@ -143,6 +145,7 @@
     <input type="file" id="importInput" accept="application/json" hidden>
   </div>
 </div>
+<div class="update-stamp" id="updateStamp">업데이트: 2026-05-27</div>
 
 <div class="overlay" id="composeOverlay">
   <div class="modal">
