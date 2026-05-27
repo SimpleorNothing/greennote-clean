@@ -114,7 +114,7 @@ async function handleTags(request, env) {
               },
               {
                 type: "text",
-                text: '이 칠판 필기 사진을 보고 "과목 + 세부 주제" 형태의 한국어 태그를 최대 3개 생성하세요. # 없이 태그 텍스트만, JSON 배열로만 응답하고 다른 텍스트는 출력하지 마세요. 예시: ["한국사","조선후기","붕당정치"]',
+                text: '이 칠판 필기 사진을 보고 세부 주제를 나타내는 한국어 해시태그를 3개 내외로 생성하세요. 규칙: (1) 과목명(국어·영어·수학·한국사·사회·과학 등)은 태그에 넣지 마세요. (2) 각 태그는 띄어쓰기 없이 한 단어로 만드세요. (3) # 없이 태그 텍스트만, JSON 배열로만 응답하고 다른 텍스트는 출력하지 마세요. 예시: ["조선후기","붕당정치","탕평책"]',
               },
             ],
           },
@@ -139,9 +139,11 @@ async function handleTags(request, env) {
       if (match) {
         const parsed = JSON.parse(match[0]);
         if (Array.isArray(parsed)) {
+          const SUBJECTS = ["국어", "영어", "수학", "한국사", "사회", "과학", "기타"];
           tags = parsed
-            .filter((t) => typeof t === "string" && t.trim())
-            .map((t) => t.trim())
+            .filter((t) => typeof t === "string")
+            .map((t) => t.trim().replace(/^#+/, "").replace(/\s+/g, ""))
+            .filter((t) => t && !SUBJECTS.includes(t))
             .slice(0, 3);
         }
       }
