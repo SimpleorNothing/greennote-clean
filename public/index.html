@@ -254,19 +254,31 @@ async function analyzeTags(blob){
   }
 }
 
-function compress(file, maxDim=1200, q=0.72){
-  return new Promise((res,rej)=>{
+// 이미지를 디코딩한다. createImageBitmap을 우선 시도(모바일에서 메모리/디코딩이 더 안정적이고
+// EXIF 회전도 자동 적용)하고, 미지원/실패 시 <img> 엘리먼트로 폴백한다.
+async function decodeImage(file){
+  if(typeof createImageBitmap==='function'){
+    try{ return await createImageBitmap(file,{imageOrientation:'from-image'}); }
+    catch(_){ try{ return await createImageBitmap(file); }catch(_){ /* fall through */ } }
+  }
+  return await new Promise((res,rej)=>{
     const img=new Image(), url=URL.createObjectURL(file);
-    img.onload=()=>{ URL.revokeObjectURL(url);
-      let {width:w,height:h}=img;
-      if(w>h && w>maxDim){ h=Math.round(h*maxDim/w); w=maxDim; }
-      else if(h>=w && h>maxDim){ w=Math.round(w*maxDim/h); h=maxDim; }
-      const c=document.createElement('canvas'); c.width=w; c.height=h;
-      c.getContext('2d').drawImage(img,0,0,w,h);
-      c.toBlob(b=> b?res(b):rej(new Error('blob')), 'image/jpeg', q);
-    };
-    img.onerror=rej; img.src=url;
+    img.onload=()=>{ URL.revokeObjectURL(url); res(img); };
+    img.onerror=()=>{ URL.revokeObjectURL(url); rej(new Error('decode')); };
+    img.src=url;
   });
+}
+async function compress(file, maxDim=1200, q=0.72){
+  const src=await decodeImage(file);
+  let w=src.width, h=src.height;
+  if(!w || !h){ if(src.close) src.close(); throw new Error('empty'); }
+  if(w>h && w>maxDim){ h=Math.round(h*maxDim/w); w=maxDim; }
+  else if(h>=w && h>maxDim){ w=Math.round(w*maxDim/h); h=maxDim; }
+  const c=document.createElement('canvas'); c.width=w; c.height=h;
+  c.getContext('2d').drawImage(src,0,0,w,h);
+  if(src.close) src.close();
+  const blob=await new Promise((res,rej)=> c.toBlob(b=> b?res(b):rej(new Error('blob')), 'image/jpeg', q));
+  return blob;
 }
 function blobToDataURL(blob){ return new Promise(res=>{ const fr=new FileReader(); fr.onload=()=>res(fr.result); fr.readAsDataURL(blob); }); }
 function dataURLToBlob(d){ const [h,b]=d.split(','); const mime=(h.match(/:(.*?);/)||[])[1]||'image/jpeg'; const bin=atob(b); const u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i); return new Blob([u],{type:mime}); }
@@ -278,10 +290,21 @@ async function loadIndex(){
 async function saveIndex(){ await api.putIndex(state.entries); }
 
 async function handleFiles(files){
-  const imgs=[...files].filter(f=>f.type.startsWith('image/'));
-  if(!imgs.length) return;
+  // 일부 모바일(카메라/HEIC)은 type이 비어있을 수 있으므로 확장자도 함께 허용
+  const imgs=[...files].filter(f=> f.type.startsWith('image/') || /\.(jpe?g|png|gif|webp|heic|heif|bmp|tiff?)$/i.test(f.name||''));
+  if(!imgs.length){ toast('이미지 파일이 아니에요'); return; }
   toast(imgs.length>1?`${imgs.length}장 처리 중…`:'사진 처리 중…');
-  for(const f of imgs){ try{ pendingQueue.push(await compress(f)); }catch(e){ console.error(e); } }
+  let failed=0;
+  for(const f of imgs){
+    try{ pendingQueue.push(await compress(f)); }
+    catch(e){
+      console.error('[GreenNote] 이미지 처리 실패:', f.name, f.type, e);
+      failed++;
+    }
+  }
+  if(failed){
+    toast(failed===imgs.length ? '사진을 불러오지 못했어요 😢 (다른 사진이나 형식으로 시도)' : `${failed}장은 불러오지 못했어요`);
+  }
   showNextCompose();
 }
 
