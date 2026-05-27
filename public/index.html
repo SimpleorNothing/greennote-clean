@@ -257,6 +257,30 @@ async function analyzeTags(blob){
   }
 }
 
+// HEIC/HEIF(아이폰·일부 안드로이드 기본 형식)는 Chromium 계열 브라우저가 디코딩하지 못한다.
+// 필요할 때만 CDN에서 변환 라이브러리를 불러와 JPEG으로 바꾼다.
+let _heicLib=null;
+function loadHeic(){
+  if(_heicLib) return _heicLib;
+  _heicLib=new Promise((res,rej)=>{
+    const s=document.createElement('script');
+    s.src='https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js';
+    s.onload=()=> window.heic2any ? res(window.heic2any) : rej(new Error('heic-lib'));
+    s.onerror=()=>rej(new Error('heic-lib'));
+    document.head.appendChild(s);
+  });
+  return _heicLib;
+}
+function isHeic(file){
+  return /image\/hei[cf]/i.test(file.type||'') || /\.(heic|heif)$/i.test(file.name||'');
+}
+async function toRenderable(file){
+  if(!isHeic(file)) return file;
+  const heic2any=await loadHeic();
+  const out=await heic2any({ blob:file, toType:'image/jpeg', quality:0.9 });
+  return Array.isArray(out) ? out[0] : out;
+}
+
 // 이미지를 디코딩한다. createImageBitmap을 우선 시도(모바일에서 메모리/디코딩이 더 안정적이고
 // EXIF 회전도 자동 적용)하고, 미지원/실패 시 <img> 엘리먼트로 폴백한다.
 async function decodeImage(file){
@@ -272,6 +296,7 @@ async function decodeImage(file){
   });
 }
 async function compress(file, maxDim=1200, q=0.72){
+  file=await toRenderable(file);
   const src=await decodeImage(file);
   let w=src.width, h=src.height;
   if(!w || !h){ if(src.close) src.close(); throw new Error('empty'); }
@@ -297,16 +322,17 @@ async function handleFiles(files){
   const imgs=[...files].filter(f=> f.type.startsWith('image/') || /\.(jpe?g|png|gif|webp|heic|heif|bmp|tiff?)$/i.test(f.name||''));
   if(!imgs.length){ toast('이미지 파일이 아니에요'); return; }
   toast(imgs.length>1?`${imgs.length}장 처리 중…`:'사진 처리 중…');
-  let failed=0;
+  let failed=0, lastInfo='';
   for(const f of imgs){
     try{ pendingQueue.push(await compress(f)); }
     catch(e){
       console.error('[GreenNote] 이미지 처리 실패:', f.name, f.type, e);
       failed++;
+      lastInfo = (f.type || (f.name||'').split('.').pop() || '?') + ' / ' + (e && e.message || e);
     }
   }
   if(failed){
-    toast(failed===imgs.length ? '사진을 불러오지 못했어요 😢 (다른 사진이나 형식으로 시도)' : `${failed}장은 불러오지 못했어요`);
+    toast(failed===imgs.length ? `사진을 불러오지 못했어요 😢 (${lastInfo})` : `${failed}장은 불러오지 못했어요 (${lastInfo})`);
   }
   showNextCompose();
 }
