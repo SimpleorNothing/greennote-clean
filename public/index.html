@@ -148,7 +148,7 @@
     <input type="file" id="importInput" accept="application/json" hidden>
   </div>
 </div>
-<div class="update-stamp" id="updateStamp">업데이트: 2026-05-27</div>
+<div class="update-stamp" id="updateStamp">업데이트: 2026-05-27 23:57</div>
 
 <div class="overlay" id="composeOverlay">
   <div class="modal">
@@ -531,6 +531,21 @@ document.getElementById('importBtn').onclick=()=>document.getElementById('import
 document.getElementById('importInput').onchange=function(){ if(this.files[0]) importData(this.files[0]); this.value=''; };
 
 (async()=>{ await loadIndex(); render(); })();
+
+// 업데이트 일시: 배포된 페이지의 Last-Modified(배포 시각)를 한국 시간 연월일시분으로 표시
+(async()=>{
+  const el=document.getElementById('updateStamp');
+  if(!el) return;
+  try{
+    const r=await fetch(location.pathname,{method:'HEAD',cache:'no-store'});
+    const lm=r.headers.get('last-modified');
+    if(!lm) return;
+    const d=new Date(lm);
+    if(isNaN(d)) return;
+    const f=new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).format(d);
+    el.textContent='업데이트: '+f;
+  }catch(_){}
+})();
 </script>
 </body>
 </html>
