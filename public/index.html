@@ -363,7 +363,9 @@ function showNextCompose(){
     // 먼저 input 활성화한 뒤 value 설정 (disabled 상태에서 값 설정 시 브라우저별 렌더링 차이 회피)
     setTagsLoading(false);
     if(pendingCurrent === capturedBlob){ // 취소 눌렸으면 null이 되므로 비교
-      document.getElementById('fTags').value = tags.join(' ');
+      const subjects=Object.keys(SUBJECTS);
+      const clean=tags.map(t=>String(t).replace(/\s+/g,'')).filter(t=>t && !subjects.includes(t)).slice(0,3);
+      document.getElementById('fTags').value = clean.join(' ');
     }
   });
 }
