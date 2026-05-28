@@ -54,7 +54,6 @@
   .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
   .card{background:var(--surface);border:1.5px solid var(--border);border-radius:14px;overflow:hidden;transition:.15s;cursor:pointer;position:relative;}
   .card:hover{border-color:var(--brand);box-shadow:0 4px 18px rgba(18,87,214,.10);}
-  .card .thumb-wrap{position:relative;}
   .card .thumb{width:100%;aspect-ratio:4/3;background:#dfe3ea center/cover no-repeat;display:block;}
   .card .thumb.skeleton{background:linear-gradient(100deg,#e9ecf1 30%,#f3f5f8 50%,#e9ecf1 70%);background-size:200% 100%;animation:sk 1.2s infinite;}
   @keyframes sk{0%{background-position:200% 0}100%{background-position:-200% 0}}
@@ -173,8 +172,10 @@
   .gq-more{margin-top:6px;width:100%;border:1.5px solid var(--border,#e6e9ee);background:var(--bg,#fff);color:var(--brand,#1257d6);font:inherit;font-size:14px;font-weight:700;padding:13px;border-radius:12px;cursor:pointer;transition:.12s}
   .gq-more:hover{border-color:var(--brand,#1257d6);background:rgba(18,87,214,.06)}
   .gq-more:disabled{color:var(--muted,#5b6470);cursor:default;border-color:var(--border,#e6e9ee);background:var(--surface,#f6f7f9)}
-  .gq-btn{position:absolute;right:8px;bottom:8px;font:inherit;font-size:12.5px;font-weight:700;color:var(--brand,#1257d6);background:rgba(255,255,255,.92);border:none;border-radius:9px;padding:6px 11px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.18);transition:.12s}
-  .gq-btn:hover{background:#fff}
+  .gq-row{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px 8px;margin-bottom:7px}
+  .gq-row .badge{margin-bottom:0;white-space:nowrap;flex-shrink:0}
+  .gq-btn{flex-shrink:0;white-space:nowrap;font:inherit;font-size:12.5px;font-weight:700;color:var(--brand,#1257d6);background:rgba(18,87,214,.08);border:none;border-radius:9px;padding:6px 11px;cursor:pointer;transition:.12s}
+  .gq-btn:hover{background:rgba(18,87,214,.16)}
 </style>
 </head>
 <body>
@@ -506,12 +507,12 @@ function renderContent(){
       const col=SUBJECTS[e.subject]||SUBJECTS['기타'];
       return `<div class="card" data-id="${e.id}">
         <button class="del" data-del="${e.id}" title="삭제">×</button>
-        <div class="thumb-wrap">
-          <div class="thumb skeleton" data-img="${e.id}"></div>
-          <button class="gq-btn" data-id="${e.id}" data-subject="${esc(e.subject)}">📝 문제 풀기</button>
-        </div>
+        <div class="thumb skeleton" data-img="${e.id}"></div>
         <div class="body">
-          <span class="badge" style="background:${col.bg};color:${col.fg}">${e.subject}</span>
+          <div class="gq-row">
+            <span class="badge" style="background:${col.bg};color:${col.fg}">${e.subject}</span>
+            <button class="gq-btn" data-id="${e.id}" data-subject="${esc(e.subject)}">문제 풀기</button>
+          </div>
           ${e.title?`<h3>${esc(e.title)}</h3>`:''}
           ${e.memo?`<p class="memo">${esc(e.memo)}</p>`:''}
           ${e.tags&&e.tags.length?`<div class="tags">${e.tags.map(t=>`<span class="tag">#${esc(t)}</span>`).join('')}</div>`:''}
