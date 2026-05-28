@@ -169,6 +169,9 @@
   .gq-submit{width:100%;font:inherit;font-size:15px;font-weight:700;color:#fff;background:var(--brand,#1257d6);border:none;border-radius:12px;padding:13px;cursor:pointer;margin-top:4px}
   .gq-submit:hover:not(:disabled){background:#0f49b3}
   .gq-submit:disabled{opacity:.6;cursor:default}
+  .gq-more{margin-top:6px;width:100%;border:1.5px solid var(--border,#e6e9ee);background:var(--bg,#fff);color:var(--brand,#1257d6);font:inherit;font-size:14px;font-weight:700;padding:13px;border-radius:12px;cursor:pointer;transition:.12s}
+  .gq-more:hover{border-color:var(--brand,#1257d6);background:rgba(18,87,214,.06)}
+  .gq-more:disabled{color:var(--muted,#5b6470);cursor:default;border-color:var(--border,#e6e9ee);background:var(--surface,#f6f7f9)}
   .gq-btn{margin-top:10px;font:inherit;font-size:13px;font-weight:700;color:var(--brand,#1257d6);background:rgba(18,87,214,.08);border:none;border-radius:9px;padding:7px 12px;cursor:pointer}
   .gq-btn:hover{background:rgba(18,87,214,.16)}
 </style>
@@ -590,26 +593,61 @@ document.getElementById('importInput').onchange=function(){ if(this.files[0]) im
 // ===== greennote 퀴즈 (칠판 사진 → AI 복습 문제) =====
 const greennoteQuiz = (function () {
   const TYPE = { choice: "객관식", short: "단답형", ox: "O / X" };
+  let state = null;
 
   async function open(entry, level, count) {
     const overlay = ensureOverlay();
     const body = overlay.querySelector(".gq-body");
     body.innerHTML = '<div class="gq-loading"><span class="gq-spin"></span>읽고 출제하는 중…</div>';
     overlay.classList.add("show");
-
     try {
-      const res = await fetch(`api/quiz/${entry.id}`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ subject: entry.subject || "", level: level || "고2", count: count || 3 }),
+      const data = await postJSON(`api/quiz/${entry.id}`, {
+        subject: entry.subject || "", level: level || "고2", count: count || 3,
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error((data.error || ("요청 실패 (" + res.status + ")")) + (data.detail ? " — " + data.detail : ""));
       if (!data.questions || !data.questions.length) throw new Error(data.error || "문제를 만들지 못했어요.");
-      render(body, data);
+      state = {
+        subject: entry.subject || "", level: level || "고2", count: count || 3,
+        summary: data.summary || "", keywords: data.keywords || [], asked: [],
+      };
+      renderAll(body, data);
     } catch (e) {
       body.innerHTML = '<div class="gq-err">문제 생성 실패 · ' + esc(e.message) + "</div>";
     }
+  }
+
+  async function loadMore() {
+    const btn = document.querySelector(".gq-more");
+    if (!btn || !state) return;
+    btn.disabled = true; btn.textContent = "새 문제 만드는 중…";
+    try {
+      const data = await postJSON("api/quiz-more", {
+        subject: state.subject, level: state.level, count: state.count,
+        summary: state.summary, keywords: state.keywords, exclude: state.asked,
+      });
+      if (!data.questions || !data.questions.length) throw new Error(data.error || "문제를 만들지 못했어요.");
+      renderQuestions(
+        document.querySelector("#gq-list"),
+        document.querySelector("#gq-score"),
+        document.querySelector("#gq-submit"),
+        data.questions
+      );
+      const head = document.querySelector(".gq-qhead");
+      if (head) head.scrollIntoView({ behavior: "smooth", block: "start" });
+    } catch (e) {
+      const list = document.querySelector("#gq-list");
+      if (list) list.insertAdjacentHTML("afterbegin", '<div class="gq-err">' + esc(e.message) + "</div>");
+    } finally {
+      btn.disabled = false; btn.textContent = "🔄 새로운 문제 풀기";
+    }
+  }
+
+  async function postJSON(url, payload) {
+    const res = await fetch(url, {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error((data.error || ("요청 실패 (" + res.status + ")")) + (data.detail ? " — " + data.detail : ""));
+    return data;
   }
 
   function ensureOverlay() {
@@ -626,20 +664,35 @@ const greennoteQuiz = (function () {
   }
   function close() { const o = document.getElementById("gq-overlay"); if (o) o.classList.remove("show"); }
 
-  function render(root, d) {
+  function renderAll(root, d) {
     const tags = (d.keywords || []).map(k => '<span class="gq-tag">#' + esc(k) + "</span>").join("");
-    const responses = new Array(d.questions.length).fill(null);
-    let graded = false;
-
     root.innerHTML =
       '<div class="gq-summary"><h3>📖 핵심 내용</h3><p>' + esc(d.summary || "") + "</p>"
       + (tags ? '<div class="gq-tags">' + tags + "</div>" : "") + "</div>"
       + '<div class="gq-qhead"><h3>복습 문제</h3><span class="gq-score" id="gq-score"></span></div>'
-      + '<div class="gq-list"></div>'
-      + '<button class="gq-submit" id="gq-submit">정답 확인</button>';
-    const list = root.querySelector(".gq-list");
+      + '<div class="gq-list" id="gq-list"></div>'
+      + '<button class="gq-submit" id="gq-submit">정답 확인</button>'
+      + '<button class="gq-more">🔄 새로운 문제 풀기</button>';
+    renderQuestions(
+      root.querySelector("#gq-list"),
+      root.querySelector("#gq-score"),
+      root.querySelector("#gq-submit"),
+      d.questions
+    );
+    root.querySelector(".gq-more").addEventListener("click", loadMore);
+  }
 
-    d.questions.forEach((q, i) => {
+  function renderQuestions(list, scoreEl, submitBtn, questions) {
+    list.innerHTML = "";
+    scoreEl.textContent = "";
+    submitBtn.disabled = false;
+    submitBtn.textContent = "정답 확인";
+
+    const responses = new Array(questions.length).fill(null);
+    let graded = false;
+
+    questions.forEach((q, i) => {
+      if (state) state.asked.push(q.question || "");
       const el = document.createElement("div");
       el.className = "gq-q";
 
@@ -688,12 +741,12 @@ const greennoteQuiz = (function () {
       list.appendChild(el);
     });
 
-    root.querySelector("#gq-submit").addEventListener("click", function () {
+    submitBtn.onclick = function () {
       if (graded) return;
       graded = true;
       let correct = 0;
       const qEls = list.querySelectorAll(".gq-q");
-      d.questions.forEach((q, i) => {
+      questions.forEach((q, i) => {
         const el = qEls[i];
         const ok = isCorrect(q, responses[i]);
         if (ok) correct++;
@@ -719,10 +772,10 @@ const greennoteQuiz = (function () {
           inp.classList.add(ok ? "gq-input-ok" : "gq-input-no");
         }
       });
-      root.querySelector("#gq-score").textContent = correct + " / " + d.questions.length + " 맞춤";
-      this.textContent = "채점 완료 · " + correct + " / " + d.questions.length;
+      scoreEl.textContent = correct + " / " + questions.length + " 맞춤";
+      this.textContent = "채점 완료 · " + correct + " / " + questions.length;
       this.disabled = true;
-    });
+    };
 
     function correctChoiceIndex(q) {
       const a = ("" + q.answer).trim();
