@@ -94,8 +94,9 @@ async function handleTags(request, env) {
       method: "POST",
       headers: {
         "content-type": "application/json",
-        "x-api-key": env.ANTHROPIC_API_KEY,
+        "x-api-key": (env.ANTHROPIC_API_KEY || "").trim(),
         "anthropic-version": "2023-06-01",
+        "user-agent": "greennote/1.0 (+https://greennote.simpleornothing.com)",
       },
       body: JSON.stringify({
         model: "claude-sonnet-4-20250514",
@@ -201,7 +202,8 @@ async function handleQuiz(request, env, id) {
   const k = imgKey(id);
   if (!k) return jsonResponse({ error: "bad id" }, 400);
 
-  if (!env.ANTHROPIC_API_KEY) {
+  const apiKey = (env.ANTHROPIC_API_KEY || "").trim();
+  if (!apiKey) {
     return jsonResponse({ error: "ANTHROPIC_API_KEY가 설정되지 않았습니다." }, 503);
   }
 
@@ -225,9 +227,10 @@ async function handleQuiz(request, env, id) {
     res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
-        "x-api-key": env.ANTHROPIC_API_KEY,
+        "x-api-key": apiKey,
         "anthropic-version": "2023-06-01",
         "content-type": "application/json",
+        "user-agent": "greennote/1.0 (+https://greennote.simpleornothing.com)",
       },
       body: JSON.stringify({
         model: QUIZ_MODEL,
