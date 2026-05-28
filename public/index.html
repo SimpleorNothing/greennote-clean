@@ -117,6 +117,46 @@
     .toolbar{flex-direction:column;align-items:stretch;gap:10px;}
     .chips{flex:none;}
     .search{width:100%;min-width:0;box-sizing:border-box;} }
+
+  /* ===== greennote 퀴즈 ===== */
+  .gq-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;z-index:1000;padding:20px;overflow:auto}
+  .gq-overlay.show{display:flex;align-items:flex-start;justify-content:center}
+  .gq-modal{position:relative;background:var(--bg,#fff);color:var(--text,#1a1d21);width:100%;max-width:640px;margin:auto;border-radius:16px;padding:26px 22px;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+  .gq-close{position:absolute;top:14px;right:14px;width:30px;height:30px;border:none;border-radius:8px;background:var(--surface,#f6f7f9);color:var(--muted,#5b6470);font-size:20px;line-height:1;cursor:pointer}
+  .gq-loading{display:flex;align-items:center;gap:10px;color:var(--muted,#5b6470);font-size:14px;padding:30px 4px}
+  .gq-spin{width:16px;height:16px;border:2.5px solid var(--border,#e6e9ee);border-top-color:var(--brand,#1257d6);border-radius:50%;animation:gq-sp .7s linear infinite}
+  @keyframes gq-sp{to{transform:rotate(360deg)}}
+  .gq-err{color:#c0392b;background:#fdeaea;border-radius:12px;padding:13px 15px;font-size:13.5px}
+  .gq-summary{background:var(--surface,#f6f7f9);border:1.5px solid var(--border,#e6e9ee);border-radius:14px;padding:16px 18px;margin-bottom:20px}
+  .gq-summary h3{font-size:13px;font-weight:700;color:var(--muted,#5b6470);margin:0 0 8px}
+  .gq-summary p{font-size:14px;line-height:1.7;margin:0 0 11px}
+  .gq-tags{display:flex;flex-wrap:wrap;gap:6px}
+  .gq-tag{font-size:12px;font-weight:600;color:var(--brand,#1257d6);background:rgba(18,87,214,.08);padding:4px 10px;border-radius:8px}
+  .gq-qhead{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:12px}
+  .gq-qhead h3{font-size:18px;font-weight:700;margin:0;letter-spacing:-0.3px}
+  .gq-score{font-size:14px;font-weight:700;color:var(--brand,#1257d6)}
+  .gq-q{background:var(--surface,#f6f7f9);border:1.5px solid var(--border,#e6e9ee);border-radius:14px;padding:18px;margin-bottom:12px}
+  .gq-q.gq-correct{border-color:#1b8a5a}
+  .gq-q.gq-wrong{border-color:#c0392b}
+  .gq-qtop{display:flex;gap:8px;margin-bottom:10px}
+  .gq-num{font-size:12px;font-weight:700;color:#fff;background:var(--brand,#1257d6);width:23px;height:23px;border-radius:7px;display:flex;align-items:center;justify-content:center}
+  .gq-type{font-size:11px;font-weight:700;color:var(--muted,#5b6470);background:rgba(127,127,127,.14);padding:4px 9px;border-radius:6px;align-self:center}
+  .gq-text{font-size:15px;font-weight:600;line-height:1.6;margin:0 0 12px}
+  .gq-choices{display:flex;flex-direction:column;gap:7px;margin-bottom:12px}
+  .gq-c{font-size:14px;line-height:1.5;padding:9px 12px;background:var(--bg,#fff);border:1.5px solid var(--border,#e6e9ee);border-radius:10px}
+  .gq-c.ans{border-color:#1b8a5a;background:#e8f6ef;font-weight:700}
+  .gq-reveal{border:1.5px solid var(--brand,#1257d6);background:transparent;color:var(--brand,#1257d6);font:inherit;font-size:13px;font-weight:700;padding:8px 15px;border-radius:10px;cursor:pointer}
+  .gq-ansbox{display:none;margin-top:4px}
+  .gq-ansbox.show{display:block}
+  .gq-a{font-size:14px;font-weight:700;margin:0 0 5px}
+  .gq-a b{color:#1b8a5a}
+  .gq-exp{font-size:13px;color:var(--muted,#5b6470);line-height:1.6;margin:0 0 11px}
+  .gq-mark{display:flex;gap:8px}
+  .gq-mark button{flex:1;font:inherit;font-size:13px;font-weight:700;padding:9px;border-radius:10px;cursor:pointer;border:1.5px solid var(--border,#e6e9ee);background:var(--bg,#fff);color:var(--muted,#5b6470)}
+  .gq-mark .gq-o.sel{border-color:#1b8a5a;background:#e8f6ef;color:#1b8a5a}
+  .gq-mark .gq-x.sel{border-color:#c0392b;background:#fdeaea;color:#c0392b}
+  .gq-btn{margin-top:10px;font:inherit;font-size:13px;font-weight:700;color:var(--brand,#1257d6);background:rgba(18,87,214,.08);border:none;border-radius:9px;padding:7px 12px;cursor:pointer}
+  .gq-btn:hover{background:rgba(18,87,214,.16)}
 </style>
 </head>
 <body>
@@ -454,6 +494,7 @@ function renderContent(){
           ${e.title?`<h3>${esc(e.title)}</h3>`:''}
           ${e.memo?`<p class="memo">${esc(e.memo)}</p>`:''}
           ${e.tags&&e.tags.length?`<div class="tags">${e.tags.map(t=>`<span class="tag">#${esc(t)}</span>`).join('')}</div>`:''}
+          <button class="gq-btn" data-id="${e.id}" data-subject="${esc(e.subject)}">📝 문제 풀기</button>
         </div></div>`;
     }).join('');
     return `<section class="group">
@@ -468,7 +509,7 @@ function renderContent(){
     im.src=src;
   });
   c.querySelectorAll('.card').forEach(card=>{
-    card.onclick=(ev)=>{ if(ev.target.dataset.del) return; openLight(card.dataset.id); };
+    card.onclick=(ev)=>{ if(ev.target.dataset.del) return; if(ev.target.closest('.gq-btn')) return; openLight(card.dataset.id); };
   });
   c.querySelectorAll('[data-del]').forEach(b=>b.onclick=(ev)=>{ ev.stopPropagation(); deleteEntry(b.dataset.del); });
 }
@@ -531,6 +572,108 @@ document.getElementById('importBtn').onclick=()=>document.getElementById('import
 document.getElementById('importInput').onchange=function(){ if(this.files[0]) importData(this.files[0]); this.value=''; };
 
 (async()=>{ await loadIndex(); render(); })();
+
+// ===== greennote 퀴즈 (칠판 사진 → AI 복습 문제) =====
+const greennoteQuiz = (function () {
+  const TYPE = { choice: "객관식", short: "단답형", ox: "O / X" };
+
+  async function open(entry, level, count) {
+    const overlay = ensureOverlay();
+    const body = overlay.querySelector(".gq-body");
+    body.innerHTML = '<div class="gq-loading"><span class="gq-spin"></span>읽고 출제하는 중…</div>';
+    overlay.classList.add("show");
+
+    try {
+      const res = await fetch(`api/quiz/${entry.id}`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ subject: entry.subject || "", level: level || "고2", count: count || 3 }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || ("요청 실패 (" + res.status + ")"));
+      if (!data.questions || !data.questions.length) throw new Error(data.error || "문제를 만들지 못했어요.");
+      render(body, data);
+    } catch (e) {
+      body.innerHTML = '<div class="gq-err">문제 생성 실패 · ' + esc(e.message) + "</div>";
+    }
+  }
+
+  function ensureOverlay() {
+    let o = document.getElementById("gq-overlay");
+    if (o) return o;
+    o = document.createElement("div");
+    o.id = "gq-overlay";
+    o.className = "gq-overlay";
+    o.innerHTML = '<div class="gq-modal"><button class="gq-close" aria-label="닫기">×</button><div class="gq-body"></div></div>';
+    o.addEventListener("click", (e) => { if (e.target === o) close(); });
+    o.querySelector(".gq-close").addEventListener("click", close);
+    document.body.appendChild(o);
+    return o;
+  }
+  function close() { const o = document.getElementById("gq-overlay"); if (o) o.classList.remove("show"); }
+
+  function render(root, d) {
+    const tags = (d.keywords || []).map(k => '<span class="gq-tag">#' + esc(k) + "</span>").join("");
+    const marks = new Array(d.questions.length).fill(null);
+
+    root.innerHTML =
+      '<div class="gq-summary"><h3>📖 핵심 내용</h3><p>' + esc(d.summary || "") + "</p>"
+      + (tags ? '<div class="gq-tags">' + tags + "</div>" : "") + "</div>"
+      + '<div class="gq-qhead"><h3>복습 문제</h3><span class="gq-score" id="gq-score"></span></div>'
+      + '<div class="gq-list"></div>';
+    const list = root.querySelector(".gq-list");
+
+    d.questions.forEach((q, i) => {
+      const el = document.createElement("div");
+      el.className = "gq-q";
+      let ch = "";
+      if (q.type === "choice" && Array.isArray(q.choices)) {
+        ch = '<div class="gq-choices">' + q.choices.map(c => {
+          const a = ("" + q.answer).trim();
+          const isAns = a && c.indexOf(a.charAt(0)) === 0;
+          return '<div class="gq-c" data-ans="' + (isAns ? 1 : 0) + '">' + esc(c) + "</div>";
+        }).join("") + "</div>";
+      }
+      el.innerHTML =
+        '<div class="gq-qtop"><span class="gq-num">' + (i + 1) + '</span><span class="gq-type">' + (TYPE[q.type] || "문제") + "</span></div>"
+        + '<p class="gq-text">' + esc(q.question || "") + "</p>" + ch
+        + '<button class="gq-reveal">정답 확인</button>'
+        + '<div class="gq-ansbox"><p class="gq-a">정답 · <b>' + esc(q.answer || "") + "</b></p>"
+        + (q.explanation ? '<p class="gq-exp">' + esc(q.explanation) + "</p>" : "")
+        + '<div class="gq-mark"><button class="gq-o">맞았어요</button><button class="gq-x">틀렸어요</button></div></div>';
+
+      const box = el.querySelector(".gq-ansbox");
+      el.querySelector(".gq-reveal").addEventListener("click", function () {
+        box.classList.add("show"); this.style.display = "none";
+        el.querySelectorAll('.gq-c[data-ans="1"]').forEach(c => c.classList.add("ans"));
+      });
+      const o = el.querySelector(".gq-o"), x = el.querySelector(".gq-x");
+      o.addEventListener("click", () => { marks[i] = true; el.classList.add("gq-correct"); el.classList.remove("gq-wrong"); o.classList.add("sel"); x.classList.remove("sel"); score(); });
+      x.addEventListener("click", () => { marks[i] = false; el.classList.add("gq-wrong"); el.classList.remove("gq-correct"); x.classList.add("sel"); o.classList.remove("sel"); score(); });
+      list.appendChild(el);
+    });
+
+    function score() {
+      const done = marks.filter(m => m !== null).length;
+      const ok = marks.filter(m => m === true).length;
+      root.querySelector("#gq-score").textContent = done ? ok + " / " + marks.length + " 맞춤" : "";
+    }
+  }
+
+  function esc(s) { return ("" + s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+
+  return { open, close };
+})();
+
+// 카드의 「문제 풀기」 버튼 클릭 위임
+document.addEventListener("click", (e) => {
+  const b = e.target.closest(".gq-btn");
+  if (!b) return;
+  e.stopPropagation();
+  const id = b.dataset.id;
+  const entry = state.entries.find(x => x.id === id) || { id, subject: b.dataset.subject || "" };
+  greennoteQuiz.open(entry, "고2", 3);
+});
 
 // 업데이트 일시: 배포된 페이지의 Last-Modified(배포 시각)를 한국 시간 연월일시분으로 표시
 (async()=>{

@@ -160,12 +160,113 @@ async function handleTags(request, env) {
   }
 }
 
+// POST /api/quiz/{id} — R2의 칠판 사진(img/{id})을 Claude Vision으로 읽어
+// 핵심 요약·키워드·복습 문제(객관식/단답/OX)를 JSON으로 생성한다.
+// ANTHROPIC_API_KEY 가 없으면 503 을 반환한다 (퀴즈 기능만 비활성, 나머지는 정상 동작).
+const QUIZ_MODEL = "claude-sonnet-4-6";
+
+function jsonResponse(obj, status = 200) {
+  return new Response(JSON.stringify(obj), {
+    status,
+    headers: { "content-type": "application/json; charset=utf-8" },
+  });
+}
+
+function buildQuizPrompt(subject, level, count) {
+  return [
+    `너는 한국 고등학생의 공부를 돕는 출제 선생님이다. 첨부한 사진은 학생이 칠판(또는 노트)에 정리한 ${subject} 필기다. 손글씨를 최대한 정확히 읽어라.`,
+    `1) 핵심 내용을 2~3문장으로 요약하고, 핵심 키워드 3~6개를 뽑아라.`,
+    `2) ${level} 수준에 맞춰 복습용 문제 ${count}개를 만들어라. 유형은 객관식(choice, 4지선다)·단답형(short)·OX(ox)를 골고루 섞어라.`,
+    `각 문제에 정답과 한 문장 해설을 붙여라. 사진에서 읽히는 내용만 근거로 출제하고, 사진에 없으면 지어내지 마라.`,
+    ``,
+    `반드시 아래 JSON 하나만 출력하라. 코드펜스·설명 금지.`,
+    `{"summary":"요약","keywords":["키워드"],"questions":[{"type":"choice|short|ox","question":"문제","choices":["①..","②..","③..","④.."],"answer":"정답(객관식은 번호기호, OX는 O 또는 X)","explanation":"한 문장 해설"}]}`,
+    `choices는 choice일 때만 채우고 short·ox에서는 빈 배열 []로 둬라.`,
+  ].join("\n");
+}
+
+function parseQuizJSON(t) {
+  if (!t) return null;
+  t = t.replace(/```json/gi, "").replace(/```/g, "").trim();
+  const s = t.indexOf("{"), e = t.lastIndexOf("}");
+  if (s === -1 || e === -1) return null;
+  try { return JSON.parse(t.slice(s, e + 1)); } catch (_) { return null; }
+}
+
+async function handleQuiz(request, env, id) {
+  if (request.method !== "POST") {
+    return new Response("method not allowed", { status: 405 });
+  }
+
+  const k = imgKey(id);
+  if (!k) return jsonResponse({ error: "bad id" }, 400);
+
+  if (!env.ANTHROPIC_API_KEY) {
+    return jsonResponse({ error: "ANTHROPIC_API_KEY가 설정되지 않았습니다." }, 503);
+  }
+
+  let opt = {};
+  try { opt = await request.json(); } catch (_) {}
+  const subject = opt.subject || "공부 내용";
+  const level   = opt.level   || "고2";
+  const count   = Math.min(Math.max(parseInt(opt.count, 10) || 3, 1), 10);
+
+  const obj = await env.greennote.get(k);
+  if (!obj) return jsonResponse({ error: "이미지를 찾을 수 없습니다." }, 404);
+
+  const b64 = arrayBufferToBase64(await obj.arrayBuffer());
+  let mediaType = obj.httpMetadata?.contentType || "image/jpeg";
+  if (!/^image\/(jpeg|png|gif|webp)$/.test(mediaType)) mediaType = "image/jpeg";
+
+  const prompt = buildQuizPrompt(subject, level, count);
+
+  let res;
+  try {
+    res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "x-api-key": env.ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        model: QUIZ_MODEL,
+        max_tokens: 2000,
+        messages: [{ role: "user", content: [
+          { type: "image", source: { type: "base64", media_type: mediaType, data: b64 } },
+          { type: "text", text: prompt },
+        ]}],
+      }),
+    });
+  } catch (e) {
+    return jsonResponse({ error: "모델 호출 중 네트워크 오류", detail: String(e).slice(0, 300) }, 502);
+  }
+
+  if (!res.ok) {
+    const t = await res.text();
+    return jsonResponse({ error: `모델 호출 실패 (${res.status})`, detail: t.slice(0, 300) }, 502);
+  }
+
+  const data = await res.json();
+  const text = (data.content || []).filter(b => b.type === "text").map(b => b.text).join("\n");
+  const parsed = parseQuizJSON(text);
+  if (!parsed || !Array.isArray(parsed.questions)) {
+    return jsonResponse({ error: "문제 생성 결과를 해석하지 못했습니다." }, 502);
+  }
+  return jsonResponse(parsed, 200);
+}
+
 export default {
   async fetch(request, env) {
     const { pathname } = new URL(request.url);
 
     if (pathname === "/api/index") return handleIndex(request, env);
     if (pathname === "/api/tags")  return handleTags(request, env);
+
+    const quizPrefix = "/api/quiz/";
+    if (pathname.startsWith(quizPrefix)) {
+      return handleQuiz(request, env, pathname.slice(quizPrefix.length));
+    }
 
     const imgPrefix = "/api/image/";
     if (pathname.startsWith(imgPrefix)) {
