@@ -163,7 +163,7 @@ async function handleTags(request, env) {
 // POST /api/quiz/{id} — R2의 칠판 사진(img/{id})을 Claude Vision으로 읽어
 // 핵심 요약·키워드·복습 문제(객관식/단답/OX)를 JSON으로 생성한다.
 // ANTHROPIC_API_KEY 가 없으면 503 을 반환한다 (퀴즈 기능만 비활성, 나머지는 정상 동작).
-const QUIZ_MODEL = "claude-sonnet-4-6";
+const QUIZ_MODEL = "claude-sonnet-4-20250514";
 
 function jsonResponse(obj, status = 200) {
   return new Response(JSON.stringify(obj), {
