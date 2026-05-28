@@ -604,7 +604,7 @@ const greennoteQuiz = (function () {
         body: JSON.stringify({ subject: entry.subject || "", level: level || "고2", count: count || 3 }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || ("요청 실패 (" + res.status + ")"));
+      if (!res.ok) throw new Error((data.error || ("요청 실패 (" + res.status + ")")) + (data.detail ? " — " + data.detail : ""));
       if (!data.questions || !data.questions.length) throw new Error(data.error || "문제를 만들지 못했어요.");
       render(body, data);
     } catch (e) {
