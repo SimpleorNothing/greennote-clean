@@ -143,18 +143,32 @@
   .gq-type{font-size:11px;font-weight:700;color:var(--muted,#5b6470);background:rgba(127,127,127,.14);padding:4px 9px;border-radius:6px;align-self:center}
   .gq-text{font-size:15px;font-weight:600;line-height:1.6;margin:0 0 12px}
   .gq-choices{display:flex;flex-direction:column;gap:7px;margin-bottom:12px}
-  .gq-c{font-size:14px;line-height:1.5;padding:9px 12px;background:var(--bg,#fff);border:1.5px solid var(--border,#e6e9ee);border-radius:10px}
+  .gq-c{font:inherit;font-size:14px;line-height:1.5;text-align:left;width:100%;padding:9px 12px;background:var(--bg,#fff);color:var(--text,#1a1d21);border:1.5px solid var(--border,#e6e9ee);border-radius:10px;cursor:pointer;transition:.12s}
+  .gq-c:hover:not(:disabled){border-color:var(--brand,#1257d6)}
+  .gq-c:disabled{cursor:default}
+  .gq-c.sel{border-color:var(--brand,#1257d6);background:rgba(18,87,214,.08);font-weight:700}
   .gq-c.ans{border-color:#1b8a5a;background:#e8f6ef;font-weight:700}
-  .gq-reveal{border:1.5px solid var(--brand,#1257d6);background:transparent;color:var(--brand,#1257d6);font:inherit;font-size:13px;font-weight:700;padding:8px 15px;border-radius:10px;cursor:pointer}
+  .gq-c.wrongsel{border-color:#c0392b;background:#fdeaea}
+  .gq-oxpick{display:flex;gap:10px;margin-bottom:12px}
+  .gq-ox{flex:1;font:inherit;font-size:20px;font-weight:800;padding:14px;border-radius:12px;cursor:pointer;border:1.5px solid var(--border,#e6e9ee);background:var(--bg,#fff);color:var(--muted,#5b6470);transition:.12s}
+  .gq-ox:hover:not(:disabled){border-color:var(--brand,#1257d6)}
+  .gq-ox:disabled{cursor:default}
+  .gq-ox.sel{border-color:var(--brand,#1257d6);background:rgba(18,87,214,.08);color:var(--brand,#1257d6)}
+  .gq-ox.ans{border-color:#1b8a5a;background:#e8f6ef;color:#1b8a5a}
+  .gq-ox.wrongsel{border-color:#c0392b;background:#fdeaea;color:#c0392b}
+  .gq-input{width:100%;font:inherit;font-size:14px;padding:10px 12px;margin-bottom:12px;border:1.5px solid var(--border,#e6e9ee);border-radius:10px;background:var(--bg,#fff);color:var(--text,#1a1d21);outline:none}
+  .gq-input:focus{border-color:var(--brand,#1257d6)}
+  .gq-input:disabled{cursor:default}
+  .gq-input.gq-input-ok{border-color:#1b8a5a;background:#e8f6ef;font-weight:700}
+  .gq-input.gq-input-no{border-color:#c0392b;background:#fdeaea}
   .gq-ansbox{display:none;margin-top:4px}
   .gq-ansbox.show{display:block}
   .gq-a{font-size:14px;font-weight:700;margin:0 0 5px}
   .gq-a b{color:#1b8a5a}
   .gq-exp{font-size:13px;color:var(--muted,#5b6470);line-height:1.6;margin:0 0 11px}
-  .gq-mark{display:flex;gap:8px}
-  .gq-mark button{flex:1;font:inherit;font-size:13px;font-weight:700;padding:9px;border-radius:10px;cursor:pointer;border:1.5px solid var(--border,#e6e9ee);background:var(--bg,#fff);color:var(--muted,#5b6470)}
-  .gq-mark .gq-o.sel{border-color:#1b8a5a;background:#e8f6ef;color:#1b8a5a}
-  .gq-mark .gq-x.sel{border-color:#c0392b;background:#fdeaea;color:#c0392b}
+  .gq-submit{width:100%;font:inherit;font-size:15px;font-weight:700;color:#fff;background:var(--brand,#1257d6);border:none;border-radius:12px;padding:13px;cursor:pointer;margin-top:4px}
+  .gq-submit:hover:not(:disabled){background:#0f49b3}
+  .gq-submit:disabled{opacity:.6;cursor:default}
   .gq-btn{margin-top:10px;font:inherit;font-size:13px;font-weight:700;color:var(--brand,#1257d6);background:rgba(18,87,214,.08);border:none;border-radius:9px;padding:7px 12px;cursor:pointer}
   .gq-btn:hover{background:rgba(18,87,214,.16)}
 </style>
@@ -614,49 +628,125 @@ const greennoteQuiz = (function () {
 
   function render(root, d) {
     const tags = (d.keywords || []).map(k => '<span class="gq-tag">#' + esc(k) + "</span>").join("");
-    const marks = new Array(d.questions.length).fill(null);
+    const responses = new Array(d.questions.length).fill(null);
+    let graded = false;
 
     root.innerHTML =
       '<div class="gq-summary"><h3>📖 핵심 내용</h3><p>' + esc(d.summary || "") + "</p>"
       + (tags ? '<div class="gq-tags">' + tags + "</div>" : "") + "</div>"
       + '<div class="gq-qhead"><h3>복습 문제</h3><span class="gq-score" id="gq-score"></span></div>'
-      + '<div class="gq-list"></div>';
+      + '<div class="gq-list"></div>'
+      + '<button class="gq-submit" id="gq-submit">정답 확인</button>';
     const list = root.querySelector(".gq-list");
 
     d.questions.forEach((q, i) => {
       const el = document.createElement("div");
       el.className = "gq-q";
-      let ch = "";
+
+      let answerArea = "";
       if (q.type === "choice" && Array.isArray(q.choices)) {
-        ch = '<div class="gq-choices">' + q.choices.map(c => {
-          const a = ("" + q.answer).trim();
-          const isAns = a && c.indexOf(a.charAt(0)) === 0;
-          return '<div class="gq-c" data-ans="' + (isAns ? 1 : 0) + '">' + esc(c) + "</div>";
-        }).join("") + "</div>";
+        answerArea = '<div class="gq-choices">' + q.choices.map((c, ci) =>
+          '<button type="button" class="gq-c" data-ci="' + ci + '">' + esc(c) + "</button>"
+        ).join("") + "</div>";
+      } else if (q.type === "ox") {
+        answerArea = '<div class="gq-oxpick"><button type="button" class="gq-ox" data-v="O">O</button><button type="button" class="gq-ox" data-v="X">X</button></div>';
+      } else {
+        answerArea = '<input type="text" class="gq-input" placeholder="정답을 입력하세요">';
       }
+
       el.innerHTML =
         '<div class="gq-qtop"><span class="gq-num">' + (i + 1) + '</span><span class="gq-type">' + (TYPE[q.type] || "문제") + "</span></div>"
-        + '<p class="gq-text">' + esc(q.question || "") + "</p>" + ch
-        + '<button class="gq-reveal">정답 확인</button>'
+        + '<p class="gq-text">' + esc(q.question || "") + "</p>"
+        + answerArea
         + '<div class="gq-ansbox"><p class="gq-a">정답 · <b>' + esc(q.answer || "") + "</b></p>"
         + (q.explanation ? '<p class="gq-exp">' + esc(q.explanation) + "</p>" : "")
-        + '<div class="gq-mark"><button class="gq-o">맞았어요</button><button class="gq-x">틀렸어요</button></div></div>';
+        + "</div>";
 
-      const box = el.querySelector(".gq-ansbox");
-      el.querySelector(".gq-reveal").addEventListener("click", function () {
-        box.classList.add("show"); this.style.display = "none";
-        el.querySelectorAll('.gq-c[data-ans="1"]').forEach(c => c.classList.add("ans"));
-      });
-      const o = el.querySelector(".gq-o"), x = el.querySelector(".gq-x");
-      o.addEventListener("click", () => { marks[i] = true; el.classList.add("gq-correct"); el.classList.remove("gq-wrong"); o.classList.add("sel"); x.classList.remove("sel"); score(); });
-      x.addEventListener("click", () => { marks[i] = false; el.classList.add("gq-wrong"); el.classList.remove("gq-correct"); x.classList.add("sel"); o.classList.remove("sel"); score(); });
+      if (q.type === "choice") {
+        el.querySelectorAll(".gq-c").forEach(btn => {
+          btn.addEventListener("click", () => {
+            if (graded) return;
+            responses[i] = parseInt(btn.dataset.ci, 10);
+            el.querySelectorAll(".gq-c").forEach(b => b.classList.remove("sel"));
+            btn.classList.add("sel");
+          });
+        });
+      } else if (q.type === "ox") {
+        el.querySelectorAll(".gq-ox").forEach(btn => {
+          btn.addEventListener("click", () => {
+            if (graded) return;
+            responses[i] = btn.dataset.v;
+            el.querySelectorAll(".gq-ox").forEach(b => b.classList.remove("sel"));
+            btn.classList.add("sel");
+          });
+        });
+      } else {
+        const inp = el.querySelector(".gq-input");
+        inp.addEventListener("input", () => { responses[i] = inp.value; });
+      }
+
       list.appendChild(el);
     });
 
-    function score() {
-      const done = marks.filter(m => m !== null).length;
-      const ok = marks.filter(m => m === true).length;
-      root.querySelector("#gq-score").textContent = done ? ok + " / " + marks.length + " 맞춤" : "";
+    root.querySelector("#gq-submit").addEventListener("click", function () {
+      if (graded) return;
+      graded = true;
+      let correct = 0;
+      const qEls = list.querySelectorAll(".gq-q");
+      d.questions.forEach((q, i) => {
+        const el = qEls[i];
+        const ok = isCorrect(q, responses[i]);
+        if (ok) correct++;
+        el.classList.add(ok ? "gq-correct" : "gq-wrong");
+        el.querySelector(".gq-ansbox").classList.add("show");
+        if (q.type === "choice") {
+          const ci = correctChoiceIndex(q);
+          el.querySelectorAll(".gq-c").forEach((b, bi) => {
+            b.disabled = true; b.classList.remove("sel");
+            if (bi === ci) b.classList.add("ans");
+            else if (bi === responses[i]) b.classList.add("wrongsel");
+          });
+        } else if (q.type === "ox") {
+          const ans = normalizeOx(q.answer);
+          el.querySelectorAll(".gq-ox").forEach(b => {
+            b.disabled = true; b.classList.remove("sel");
+            if (b.dataset.v === ans) b.classList.add("ans");
+            else if (b.dataset.v === responses[i]) b.classList.add("wrongsel");
+          });
+        } else {
+          const inp = el.querySelector(".gq-input");
+          inp.disabled = true;
+          inp.classList.add(ok ? "gq-input-ok" : "gq-input-no");
+        }
+      });
+      root.querySelector("#gq-score").textContent = correct + " / " + d.questions.length + " 맞춤";
+      this.textContent = "채점 완료 · " + correct + " / " + d.questions.length;
+      this.disabled = true;
+    });
+
+    function correctChoiceIndex(q) {
+      const a = ("" + q.answer).trim();
+      if (!a || !Array.isArray(q.choices)) return -1;
+      for (let k = 0; k < q.choices.length; k++) {
+        if (("" + q.choices[k]).indexOf(a.charAt(0)) === 0) return k;
+      }
+      return -1;
+    }
+    function normText(s) { return ("" + s).toLowerCase().replace(/\s+/g, ""); }
+    function normalizeOx(s) {
+      const t = ("" + s).trim().toUpperCase();
+      if (t[0] === "O" || t[0] === "0" || t.includes("맞") || t.includes("참") || t === "TRUE") return "O";
+      if (t[0] === "X" || t.includes("틀") || t.includes("거짓") || t === "FALSE") return "X";
+      return t;
+    }
+    function isCorrect(q, resp) {
+      if (resp === null || resp === undefined || ("" + resp).trim() === "") return false;
+      if (q.type === "choice") return resp === correctChoiceIndex(q);
+      if (q.type === "ox") return resp === normalizeOx(q.answer);
+      const a = normText(q.answer), r = normText(resp);
+      if (!a || !r) return false;
+      if (r === a) return true;
+      return a.length >= 2 && r.length >= 2 && (r.includes(a) || a.includes(r));
     }
   }
 
