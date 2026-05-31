@@ -1,9 +1,9 @@
 // Cloudflare Worker (static assets + R2)
 //   GET    /api/index       → R2의 index.json 반환 (없으면 빈 배열)
 //   PUT    /api/index       → 요청 본문(JSON)을 index.json 으로 저장
-//   GET    /api/image/{id}  → R2에서 사진 반환
-//   PUT    /api/image/{id}  → 사진 업로드 (본문: 이미지 바이너리)
-//   DELETE /api/image/{id}  → 사진 삭제
+//   GET    /api/image/{id}  → R2에서 사진/동영상 반환
+//   PUT    /api/image/{id}  → 사진·동영상 업로드 (본문: 미디어 바이너리, content-type 헤더로 형식 보존)
+//   DELETE /api/image/{id}  → 사진/동영상 삭제
 //   POST   /api/tags        → 이미지 바이너리를 받아 Claude Vision으로 한국어 태그 자동 생성
 // 그 외 경로는 public/ 의 정적 파일(env.ASSETS)로 처리된다.
 // R2 버킷 binding 이름은 "greennote".

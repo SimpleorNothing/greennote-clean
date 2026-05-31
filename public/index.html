@@ -56,6 +56,9 @@
   .card:hover{border-color:var(--brand);box-shadow:0 4px 18px rgba(18,87,214,.10);}
   .card .thumb{width:100%;aspect-ratio:4/3;background:#dfe3ea center/cover no-repeat;display:block;}
   .card .thumb.skeleton{background:linear-gradient(100deg,#e9ecf1 30%,#f3f5f8 50%,#e9ecf1 70%);background-size:200% 100%;animation:sk 1.2s infinite;}
+  .card .thumb.video-thumb{position:relative;background:#000;display:flex;align-items:center;justify-content:center;}
+  .card .thumb-video{width:100%;height:100%;object-fit:cover;display:block;}
+  .card .play-badge{position:absolute;width:46px;height:46px;border-radius:50%;background:rgba(0,0,0,.55);color:#fff;display:flex;align-items:center;justify-content:center;font-size:18px;padding-left:3px;pointer-events:none;}
   @keyframes sk{0%{background-position:200% 0}100%{background-position:-200% 0}}
   .card .body{padding:13px 14px 15px;}
   .badge{display:inline-block;font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:999px;margin-bottom:7px;}
@@ -97,6 +100,7 @@
   .light{position:fixed;inset:0;background:rgba(12,14,18,.9);display:none;flex-direction:column;align-items:center;justify-content:center;z-index:60;padding:30px;}
   .light.show{display:flex;}
   .light img{max-width:92vw;max-height:74vh;border-radius:10px;box-shadow:0 20px 60px rgba(0,0,0,.5);}
+  .light video{max-width:92vw;max-height:74vh;border-radius:10px;box-shadow:0 20px 60px rgba(0,0,0,.5);background:#000;}
   .light .meta{color:#fff;text-align:center;margin-top:16px;max-width:680px;}
   .light .meta .lb-badge{font-size:12px;font-weight:700;padding:3px 10px;border-radius:999px;background:rgba(255,255,255,.18);}
   .light .meta h3{font-size:18px;font-weight:700;margin:10px 0 4px;}
@@ -189,10 +193,10 @@
 
   <div class="dropzone" id="dropzone">
     <span class="ico">📷</span>
-    <div class="big">사진을 여기로 끌어다 놓거나 눌러서 추가</div>
-    <div>JPG · PNG · 여러 장도 한 번에 가능</div>
+    <div class="big">사진·동영상을 여기로 끌어다 놓거나 눌러서 추가</div>
+    <div>JPG · PNG · MP4 · MOV · 여러 개도 한 번에 가능</div>
   </div>
-  <input type="file" id="fileInput" accept="image/*" multiple hidden>
+  <input type="file" id="fileInput" accept="image/*,video/*" multiple hidden>
 
   <div class="toolbar">
     <div class="chips" id="filterChips"></div>
@@ -213,6 +217,7 @@
   <div class="modal">
     <h2 id="composeTitle">기록 추가</h2>
     <img class="preview" id="composePreview" alt="">
+    <video class="preview" id="composePreviewVideo" controls playsinline style="display:none;"></video>
     <div class="field"><label>날짜</label><input type="date" id="fDate"></div>
     <div class="field"><label>과목</label><div class="subj-pick" id="subjPick"></div></div>
     <div class="field"><label>단원 / 제목 <span style="font-weight:400;">(선택)</span></label><input type="text" id="fTitle" placeholder="예) 신미양요 (1871)"></div>
@@ -232,6 +237,7 @@
 <div class="light" id="lightbox">
   <button class="close" id="lightClose">×</button>
   <img id="lightImg" alt="">
+  <video id="lightVideo" controls playsinline style="display:none;"></video>
   <div class="meta" id="lightMeta"></div>
 </div>
 
@@ -262,9 +268,19 @@ const api = {
   async getIndex(){ const r=await fetch(`${this.base}/index`,{cache:'no-store'}); if(!r.ok) throw new Error('index'); return r.json(); },
   async putIndex(list){ const r=await fetch(`${this.base}/index`,{method:'PUT',headers:{'content-type':'application/json'},body:JSON.stringify(list)}); if(!r.ok) throw new Error('save'); },
   imgUrl(id){ return `${this.base}/image/${id}`; },
-  async putImage(id,blob){ const r=await fetch(this.imgUrl(id),{method:'PUT',headers:{'content-type':'image/jpeg'},body:blob}); if(!r.ok) throw new Error('upload'); },
+  async putImage(id,blob,contentType){ const r=await fetch(this.imgUrl(id),{method:'PUT',headers:{'content-type':contentType||blob.type||'image/jpeg'},body:blob}); if(!r.ok) throw new Error('upload'); },
   async delImage(id){ await fetch(this.imgUrl(id),{method:'DELETE'}); },
 };
+
+// 동영상 업로드 설정 (Cloudflare Worker 요청 본문 한도를 고려한 클라이언트측 가드)
+const MAX_VIDEO_MB = 100;
+const MAX_VIDEO_BYTES = MAX_VIDEO_MB * 1024 * 1024;
+const VIDEO_EXT = /\.(mp4|mov|m4v|webm|ogg|ogv|3gp|3gpp|avi|mkv)$/i;
+function isVideoFile(f){ return (f.type||'').startsWith('video/') || VIDEO_EXT.test(f.name||''); }
+function guessVideoMime(name){
+  const ext=(name||'').split('.').pop().toLowerCase();
+  return ({mp4:'video/mp4',m4v:'video/mp4',mov:'video/quicktime',webm:'video/webm',ogv:'video/ogg',ogg:'video/ogg','3gp':'video/3gpp','3gpp':'video/3gpp',avi:'video/x-msvideo',mkv:'video/x-matroska'})[ext]||'video/mp4';
+}
 
 let state = { entries:[], filter:'전체', query:'' };
 let pendingQueue = [];
@@ -381,20 +397,28 @@ async function saveIndex(){ await api.putIndex(state.entries); }
 
 async function handleFiles(files){
   // 일부 모바일(카메라/HEIC)은 type이 비어있을 수 있으므로 확장자도 함께 허용
-  const imgs=[...files].filter(f=> f.type.startsWith('image/') || /\.(jpe?g|png|gif|webp|heic|heif|bmp|tiff?)$/i.test(f.name||''));
-  if(!imgs.length){ toast('이미지 파일이 아니에요'); return; }
-  toast(imgs.length>1?`${imgs.length}장 처리 중…`:'사진 처리 중…');
+  const items=[...files].filter(f=> f.type.startsWith('image/') || isVideoFile(f) || /\.(jpe?g|png|gif|webp|heic|heif|bmp|tiff?)$/i.test(f.name||''));
+  if(!items.length){ toast('이미지·동영상 파일이 아니에요'); return; }
+  toast(items.length>1?`${items.length}개 처리 중…`:'처리 중…');
   let failed=0, lastInfo='';
-  for(const f of imgs){
-    try{ pendingQueue.push(await compress(f)); }
+  for(const f of items){
+    try{
+      if(isVideoFile(f)){
+        // 동영상은 압축 없이 원본 그대로 업로드한다 (브라우저에서 트랜스코딩 불가)
+        if(f.size > MAX_VIDEO_BYTES){ failed++; lastInfo=`동영상 용량 초과 (최대 ${MAX_VIDEO_MB}MB)`; continue; }
+        pendingQueue.push({ blob:f, kind:'video', mime:(f.type||guessVideoMime(f.name)) });
+      } else {
+        pendingQueue.push({ blob:await compress(f), kind:'image', mime:'image/jpeg' });
+      }
+    }
     catch(e){
-      console.error('[GreenNote] 이미지 처리 실패:', f.name, f.type, e);
+      console.error('[GreenNote] 파일 처리 실패:', f.name, f.type, e);
       failed++;
       lastInfo = (f.type || (f.name||'').split('.').pop() || '?') + ' / ' + (e && e.message || e);
     }
   }
   if(failed){
-    toast(failed===imgs.length ? `사진을 불러오지 못했어요 😢 (${lastInfo})` : `${failed}장은 불러오지 못했어요 (${lastInfo})`);
+    toast(failed===items.length ? `파일을 불러오지 못했어요 😢 (${lastInfo})` : `${failed}개는 불러오지 못했어요 (${lastInfo})`);
   }
   showNextCompose();
 }
@@ -403,10 +427,18 @@ function showNextCompose(){
   if(!pendingQueue.length){ pendingCurrent=null; return; }
   pendingCurrent=pendingQueue.shift();
   if(previewURL) URL.revokeObjectURL(previewURL);
-  previewURL=URL.createObjectURL(pendingCurrent);
+  previewURL=URL.createObjectURL(pendingCurrent.blob);
   selectedSubject='한국사';
-  document.getElementById('composeTitle').textContent=pendingQueue.length?`기록 추가 (남은 사진 ${pendingQueue.length}장)`:'기록 추가';
-  document.getElementById('composePreview').src=previewURL;
+  document.getElementById('composeTitle').textContent=pendingQueue.length?`기록 추가 (남은 ${pendingQueue.length}개)`:'기록 추가';
+  const imgPrev=document.getElementById('composePreview'), vidPrev=document.getElementById('composePreviewVideo');
+  const isVid = pendingCurrent.kind==='video';
+  if(isVid){
+    imgPrev.style.display='none'; imgPrev.removeAttribute('src');
+    vidPrev.style.display=''; vidPrev.src=previewURL;
+  } else {
+    vidPrev.style.display='none'; vidPrev.removeAttribute('src');
+    imgPrev.style.display=''; imgPrev.src=previewURL;
+  }
   document.getElementById('fDate').value=todayStr();
   document.getElementById('fTitle').value='';
   document.getElementById('fMemo').value='';
@@ -415,16 +447,19 @@ function showNextCompose(){
   renderSubjPick();
   document.getElementById('composeOverlay').classList.add('show');
 
+  // 동영상은 Claude Vision 분석 대상이 아니므로 자동 태그 생략
+  if(isVid){ setTagsLoading(false); return; }
+
   // Claude Vision 태그 자동 생성
   // analyzeTags는 항상 resolve되므로 .catch/.finally 불필요
-  const capturedBlob = pendingCurrent;
-  console.log('[GreenNote] showNextCompose: 태그 분석 시작 · blob size =', capturedBlob?.size);
+  const captured = pendingCurrent;
+  console.log('[GreenNote] showNextCompose: 태그 분석 시작 · blob size =', captured.blob?.size);
   setTagsLoading(true);
-  analyzeTags(capturedBlob).then(tags => {
-    console.log('[GreenNote] showNextCompose: 태그 수신 =', tags, '/ 모달 유효?', pendingCurrent === capturedBlob);
+  analyzeTags(captured.blob).then(tags => {
+    console.log('[GreenNote] showNextCompose: 태그 수신 =', tags, '/ 모달 유효?', pendingCurrent === captured);
     // 먼저 input 활성화한 뒤 value 설정 (disabled 상태에서 값 설정 시 브라우저별 렌더링 차이 회피)
     setTagsLoading(false);
-    if(pendingCurrent === capturedBlob){ // 취소 눌렸으면 null이 되므로 비교
+    if(pendingCurrent === captured){ // 취소 눌렸으면 null이 되므로 비교
       const subjects=Object.keys(SUBJECTS);
       const clean=tags.map(t=>String(t).replace(/\s+/g,'')).filter(t=>t && !subjects.includes(t)).slice(0,3);
       document.getElementById('fTags').value = clean.join(' ');
@@ -437,10 +472,10 @@ async function saveCompose(){
   const btn=document.getElementById('composeSave'); btn.disabled=true;
   const id=Date.now().toString(36)+Math.random().toString(36).slice(2,6);
   const entry={ id, date:document.getElementById('fDate').value||todayStr(), subject:selectedSubject,
-    title:document.getElementById('fTitle').value.trim(), memo:document.getElementById('fMemo').value.trim(),
+    kind:pendingCurrent.kind, title:document.getElementById('fTitle').value.trim(), memo:document.getElementById('fMemo').value.trim(),
     tags:parseTags(document.getElementById('fTags').value), createdAt:Date.now() };
   try{
-    await api.putImage(id, pendingCurrent);
+    await api.putImage(id, pendingCurrent.blob, pendingCurrent.mime);
     state.entries.push(entry);
     await saveIndex();
     toast('저장됐어요 ✓');
@@ -505,13 +540,17 @@ function renderContent(){
   c.innerHTML=Object.keys(groups).sort().reverse().map(date=>{
     const items=groups[date].map(e=>{
       const col=SUBJECTS[e.subject]||SUBJECTS['기타'];
+      const isVid=e.kind==='video';
+      const thumb=isVid
+        ? `<div class="thumb video-thumb skeleton" data-vid="${e.id}"><video class="thumb-video" preload="metadata" muted playsinline></video><span class="play-badge">▶</span></div>`
+        : `<div class="thumb skeleton" data-img="${e.id}"></div>`;
       return `<div class="card" data-id="${e.id}">
         <button class="del" data-del="${e.id}" title="삭제">×</button>
-        <div class="thumb skeleton" data-img="${e.id}"></div>
+        ${thumb}
         <div class="body">
           <div class="gq-row">
             <span class="badge" style="background:${col.bg};color:${col.fg}">${e.subject}</span>
-            <button class="gq-btn" data-id="${e.id}" data-subject="${esc(e.subject)}">문제 풀기</button>
+            ${isVid?'':`<button class="gq-btn" data-id="${e.id}" data-subject="${esc(e.subject)}">문제 풀기</button>`}
           </div>
           ${e.title?`<h3>${esc(e.title)}</h3>`:''}
           ${e.memo?`<p class="memo">${esc(e.memo)}</p>`:''}
@@ -529,6 +568,13 @@ function renderContent(){
     im.onerror=()=>el.classList.remove('skeleton');
     im.src=src;
   });
+  c.querySelectorAll('.thumb[data-vid]').forEach(el=>{
+    const v=el.querySelector('video');
+    // #t=0.1 로 첫 프레임을 썸네일처럼 표시
+    v.src=api.imgUrl(el.dataset.vid)+'#t=0.1';
+    v.onloadeddata=()=>el.classList.remove('skeleton');
+    v.onerror=()=>el.classList.remove('skeleton');
+  });
   c.querySelectorAll('.card').forEach(card=>{
     card.onclick=(ev)=>{ if(ev.target.dataset.del) return; if(ev.target.closest('.gq-btn')) return; openLight(card.dataset.id); };
   });
@@ -539,7 +585,14 @@ function render(){ renderStats(); renderFilters(); renderContent(); }
 
 function openLight(id){
   const e=state.entries.find(x=>x.id===id); if(!e) return;
-  document.getElementById('lightImg').src=api.imgUrl(id);
+  const img=document.getElementById('lightImg'), vid=document.getElementById('lightVideo');
+  if(e.kind==='video'){
+    img.style.display='none'; img.removeAttribute('src');
+    vid.style.display=''; vid.src=api.imgUrl(id);
+  } else {
+    vid.pause(); vid.style.display='none'; vid.removeAttribute('src');
+    img.style.display=''; img.src=api.imgUrl(id);
+  }
   document.getElementById('lightMeta').innerHTML=
     `<span class="lb-badge">${e.subject}</span>
      <h3>${esc(e.title)||fmtDate(e.date)}</h3>
@@ -547,7 +600,7 @@ function openLight(id){
      ${e.tags&&e.tags.length?`<div style="display:flex;flex-wrap:wrap;gap:5px;justify-content:center;margin-top:10px;">${e.tags.map(t=>`<span style="font-size:12px;font-weight:600;color:#a0b8e8;background:rgba(255,255,255,.13);border-radius:999px;padding:3px 10px;">#${esc(t)}</span>`).join('')}</div>`:''}`;
   document.getElementById('lightbox').classList.add('show');
 }
-function closeLight(){ document.getElementById('lightbox').classList.remove('show'); }
+function closeLight(){ const v=document.getElementById('lightVideo'); v.pause(); document.getElementById('lightbox').classList.remove('show'); }
 
 async function exportData(){
   toast('백업 만드는 중…');
@@ -583,7 +636,7 @@ fi.onchange=()=>{ if(fi.files.length){ handleFiles(fi.files); fi.value=''; } };
 dz.addEventListener('drop',e=>{ if(e.dataTransfer.files.length) handleFiles(e.dataTransfer.files); });
 
 document.getElementById('composeSave').onclick=saveCompose;
-document.getElementById('composeCancel').onclick=()=>{ pendingCurrent=null; pendingQueue=[]; setTagsLoading(false); document.getElementById('composeOverlay').classList.remove('show'); };
+document.getElementById('composeCancel').onclick=()=>{ pendingCurrent=null; pendingQueue=[]; setTagsLoading(false); const vp=document.getElementById('composePreviewVideo'); vp.pause(); document.getElementById('composeOverlay').classList.remove('show'); };
 document.getElementById('searchInput').oninput=e=>{ state.query=e.target.value.trim(); renderContent(); };
 document.getElementById('lightClose').onclick=closeLight;
 document.getElementById('lightbox').onclick=e=>{ if(e.target.id==='lightbox') closeLight(); };
