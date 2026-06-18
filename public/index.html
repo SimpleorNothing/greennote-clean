@@ -231,6 +231,7 @@ const greennoteQuiz = (function () {
           subject: data.subject || "", scope: data.scope || "",
           summary: data.summary || "", keywords: data.keywords || [],
           level, asked: qs.map(q => q.question),
+          blob, saved: false, // 풀이 완료 후 R2 저장용
         },
       };
       renderQuestion();
@@ -358,8 +359,42 @@ const greennoteQuiz = (function () {
 
   function clearFoot() { const f = document.getElementById("qzFoot"); if (f) f.remove(); }
 
+  // 과목 자동 분류(자유 텍스트 → 고정 키) · 오늘 날짜
+  const SUBJECT_KEYS = ["국어", "영어", "수학", "한국사", "사회", "과학"];
+  function mapSubject(t) { t = "" + (t || ""); return SUBJECT_KEYS.find(k => t.includes(k)) || "기타"; }
+  function todayStr() { const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
+
+  // 풀이를 마친 판서 이미지를 R2(api/image)에 저장하고 index.json에 메타데이터를 추가한다.
+  // ※ 한 번만 저장(새 10문제로 이어 풀어도 중복 저장하지 않음)
+  async function saveBoardImage() {
+    if (!s || s.meta.saved || !s.meta.blob) return;
+    s.meta.saved = true; // 낙관적 잠금(중복 방지)
+    const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    try {
+      const up = await fetch("api/image/" + id, { method: "PUT", headers: { "content-type": "image/jpeg" }, body: s.meta.blob });
+      if (!up.ok) throw new Error("upload " + up.status);
+      let list = [];
+      try { const r = await fetch("api/index", { cache: "no-store" }); if (r.ok) list = await r.json(); } catch (_) {}
+      if (!Array.isArray(list)) list = [];
+      list.push({
+        id, date: todayStr(), subject: mapSubject(s.meta.subject), kind: "image",
+        title: s.meta.scope || "", memo: s.meta.summary || "",
+        tags: (s.meta.keywords || []).map(k => ("" + k).replace(/\s+/g, "")).filter(Boolean).slice(0, 6),
+        createdAt: Date.now(),
+      });
+      const pr = await fetch("api/index", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(list) });
+      if (!pr.ok) throw new Error("index " + pr.status);
+      toast("판서 이미지를 저장했어요 ✓");
+    } catch (e) {
+      s.meta.saved = false; // 실패 시 재시도 허용
+      console.warn("[GreenNote] 이미지 저장 실패:", e);
+      toast("이미지 저장 실패 (저장소 연결 확인)");
+    }
+  }
+
   function renderResult() {
     clearFoot();
+    saveBoardImage(); // 풀이 완료 시점에 판서 이미지 저장
     const area = document.getElementById("quizArea");
     const total = s.questions.length;
     const correct = s.correct;
