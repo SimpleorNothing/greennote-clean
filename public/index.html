@@ -37,6 +37,28 @@
   .toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--text);color:#fff;padding:11px 20px;border-radius:999px;font-size:13.5px;font-weight:600;opacity:0;pointer-events:none;transition:.25s;z-index:90;}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 
+  /* ===== 홈: 저장된 판서 갤러리 ===== */
+  #gallery{margin-top:34px;}
+  .gal-title{font-size:18px;font-weight:700;letter-spacing:-.3px;margin:0 0 14px;padding-bottom:8px;border-bottom:1px solid var(--border);}
+  .gal-title span{font-size:14px;color:var(--muted);font-weight:600;margin-left:4px;}
+  .gal-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+  .gal-card{background:var(--surface);border:1.5px solid var(--border);border-radius:14px;overflow:hidden;cursor:pointer;transition:.15s;}
+  .gal-card:hover{border-color:var(--brand);box-shadow:0 4px 18px rgba(18,87,214,.10);}
+  .gal-thumb{width:100%;aspect-ratio:4/3;background:#dfe3ea center/cover no-repeat;display:block;}
+  .gal-thumb.skeleton{background:linear-gradient(100deg,#e9ecf1 30%,#f3f5f8 50%,#e9ecf1 70%);background-size:200% 100%;animation:gal-sk 1.2s infinite;}
+  @keyframes gal-sk{0%{background-position:200% 0}100%{background-position:-200% 0}}
+  .gal-body{padding:11px 12px 13px;}
+  .gal-badge{display:inline-block;font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:999px;margin-bottom:6px;}
+  .gal-h{font-size:14px;font-weight:700;line-height:1.4;margin:0 0 3px;}
+  .gal-date{font-size:12px;color:var(--muted);}
+  .gal-empty{text-align:center;color:var(--muted);font-size:14px;padding:40px 20px;border:1.5px dashed var(--border);border-radius:14px;line-height:1.7;}
+
+  .lightbox{position:fixed;inset:0;background:rgba(12,14,18,.9);display:none;align-items:center;justify-content:center;z-index:100;padding:24px;cursor:zoom-out;}
+  .lightbox.show{display:flex;}
+  .lightbox img{max-width:94vw;max-height:90vh;border-radius:10px;box-shadow:0 20px 60px rgba(0,0,0,.5);}
+
+  @media(max-width:640px){ .gal-grid{grid-template-columns:repeat(2,1fr);} }
+
   /* ===== 퀴즈 (한 문제씩) ===== */
   .qz-loading{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:14px;padding:40px 4px}
   .qz-spin{width:16px;height:16px;border:2.5px solid var(--border);border-top-color:var(--brand);border-radius:50%;animation:qz-sp .7s linear infinite}
@@ -132,9 +154,11 @@
   </div>
   <input type="file" id="fileInput" accept="image/*" hidden>
 
+  <div id="gallery"></div>
   <div id="quizArea"></div>
 </div>
 
+<div class="lightbox" id="lightbox"><img id="lightImg" alt="저장된 판서"></div>
 <div class="update-stamp" id="updateStamp">업데이트: 2026-06-18</div>
 <div class="toast" id="toast"></div>
 
@@ -192,17 +216,73 @@ async function compress(file, maxDim=1200, q=0.72){
   return blob;
 }
 
+// ── 홈(저장된 판서 갤러리) ──
+const SUBJECTS = {
+  '국어':{bg:'#fdecec',fg:'#b3261e'}, '영어':{bg:'#e8f0fe',fg:'#1257d6'},
+  '수학':{bg:'#e7f6ec',fg:'#1b7a3e'}, '한국사':{bg:'#fbeede',fg:'#9a6212'},
+  '사회':{bg:'#f0ecfb',fg:'#6b3fb0'}, '과학':{bg:'#e6f4f6',fg:'#0d6e7a'}, '기타':{bg:'#eef1f5',fg:'#5b6470'},
+};
+
+async function renderGallery(){
+  const el = document.getElementById('gallery');
+  if(!el) return;
+  let list = [];
+  try{ const r = await fetch('api/index',{cache:'no-store'}); if(r.ok) list = await r.json(); }catch(_){}
+  if(!Array.isArray(list)) list = [];
+  list = list.filter(e => e && e.id && e.kind !== 'video');
+  list.sort((a,b)=> (b.createdAt||0)-(a.createdAt||0));
+
+  if(!list.length){
+    el.innerHTML = '<div class="gal-empty">아직 저장된 판서가 없어요.<br>판서를 올려 문제를 풀고, 결과 화면에서 「판서 저장하기」를 눌러보세요.</div>';
+    return;
+  }
+  el.innerHTML = '<h2 class="gal-title">저장된 판서 <span>'+list.length+'</span></h2>'
+    + '<div class="gal-grid">'
+    + list.map(e=>{
+        const col = SUBJECTS[e.subject] || SUBJECTS['기타'];
+        return '<div class="gal-card" data-id="'+esc(e.id)+'">'
+          + '<div class="gal-thumb skeleton" data-img="'+esc(e.id)+'"></div>'
+          + '<div class="gal-body">'
+            + '<span class="gal-badge" style="background:'+col.bg+';color:'+col.fg+'">'+esc(e.subject||'기타')+'</span>'
+            + (e.title?'<div class="gal-h">'+esc(e.title)+'</div>':'')
+            + (e.date?'<div class="gal-date">'+esc(e.date)+'</div>':'')
+          + '</div></div>';
+      }).join('')
+    + '</div>';
+
+  el.querySelectorAll('.gal-thumb[data-img]').forEach(t=>{
+    const src='api/image/'+t.dataset.img, im=new Image();
+    im.onload=()=>{ t.style.backgroundImage='url('+src+')'; t.classList.remove('skeleton'); };
+    im.onerror=()=>t.classList.remove('skeleton');
+    im.src=src;
+  });
+  el.querySelectorAll('.gal-card').forEach(c=> c.onclick=()=> openLightbox(c.dataset.id));
+}
+
+function openLightbox(id){
+  const lb=document.getElementById('lightbox'), img=document.getElementById('lightImg');
+  img.src='api/image/'+id;
+  lb.classList.add('show');
+}
+function closeLightbox(){ document.getElementById('lightbox').classList.remove('show'); }
+document.getElementById('lightbox').addEventListener('click', closeLightbox);
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeLightbox(); });
+
 // ── 사진 업로드 → 곧바로 퀴즈 ──
 function setLandingVisible(on){
   document.getElementById('landing').style.display = on ? '' : 'none';
   document.getElementById('dropzone').style.display = on ? '' : 'none';
+  document.getElementById('gallery').style.display = on ? '' : 'none';
 }
-function quizReset(){
+// 홈으로 이동(저장된 판서 갤러리 새로고침)
+function goHome(){
   greennoteQuiz.clearFoot();
   document.getElementById('quizArea').innerHTML='';
   setLandingVisible(true);
+  renderGallery();
   window.scrollTo({top:0, behavior:'smooth'});
 }
+function quizReset(){ goHome(); }
 
 async function handleFile(file){
   if(!(file && (file.type.startsWith('image/') || isHeic(file) || /\.(jpe?g|png|gif|webp|heic|heif|bmp|tiff?)$/i.test(file.name||'')))){
@@ -430,20 +510,20 @@ const greennoteQuiz = (function () {
       + "</div>"
       + '<div class="qz-review">' + review + "</div>"
       + '<div class="qz-result-actions">'
-        + '<button class="qz-rbtn save" id="qzSave">' + (s.meta.saved ? "저장됨 ✓" : "💾 판서 저장하기") + "</button>"
+        + '<button class="qz-rbtn save" id="qzSave">💾 판서 저장하고 홈으로</button>'
         + '<button class="qz-rbtn primary" id="qzMore">🔄 같은 범위로 새 ' + total + "문제</button>"
-        + '<button class="qz-rbtn ghost" onclick="quizReset()">다른 판서 올리기</button>'
+        + '<button class="qz-rbtn ghost" onclick="quizReset()">저장 안 하고 홈으로</button>'
       + "</div>";
     document.getElementById("qzMore").addEventListener("click", loadMore);
 
+    // 저장하기 → R2 저장 후 홈(저장된 판서 갤러리)으로 이동
     const saveBtn = document.getElementById("qzSave");
-    if (s.meta.saved) saveBtn.disabled = true;
     saveBtn.addEventListener("click", async () => {
-      if (s.meta.saved) return;
+      if (s.meta.saved) { goHome(); return; }
       saveBtn.disabled = true; saveBtn.textContent = "저장 중…";
       await saveBoardImage();
-      if (s.meta.saved) { saveBtn.textContent = "저장됨 ✓"; }
-      else { saveBtn.disabled = false; saveBtn.textContent = "💾 판서 저장하기"; }
+      if (s.meta.saved) { goHome(); }
+      else { saveBtn.disabled = false; saveBtn.textContent = "💾 판서 저장하고 홈으로"; }
     });
   }
 
@@ -489,6 +569,9 @@ const greennoteQuiz = (function () {
 
   return { start, clearFoot };
 })();
+
+// 홈: 저장된 판서 갤러리 초기 렌더
+renderGallery();
 
 // 업데이트 일시: 배포된 페이지의 Last-Modified(배포 시각)를 한국 시간 연월일시분으로 표시
 (async()=>{
