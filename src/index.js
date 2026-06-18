@@ -259,18 +259,100 @@ async function handleQuiz(request, env, id) {
   return jsonResponse(parsed, 200);
 }
 
+// POST /api/quiz-image — 업로드한 판서 사진을 Claude Vision으로 읽어
+// '판서와 같은 단원(범위)이지만 판서에는 적혀 있지 않은' 내용으로 문제를 만든다.
+// 사진을 저장하지 않고(요청 본문의 이미지 바이너리만 사용) 곧바로 출제한다.
+function buildBeyondQuizPrompt(level, count) {
+  return [
+    `너는 한국 고등학생의 공부를 돕는 출제 선생님이다. 첨부한 사진은 학생이 칠판(판서)에 정리한 필기다. 손글씨를 최대한 정확히 읽어라.`,
+    `1) 어떤 과목·단원(범위)인지 판단하고, 판서의 핵심 내용을 2~3문장으로 요약하라. 핵심 키워드 3~6개도 뽑아라.`,
+    `2) 그 '같은 단원(범위)' 안에서, 단 '판서에는 적혀 있지 않은' 내용으로만 ${level} 수준의 문제 ${count}개를 만들어라.`,
+    `- 판서에 이미 나온 사실·용어·개념·인물·연도를 그대로 묻는 문제는 절대 만들지 마라. 판서를 본 학생이라도 판서만으로는 풀 수 없어야 한다.`,
+    `- 같은 단원에 속하고 한국 고등학교 교과에서 표준적으로 다루는 '정확한 사실'만 출제하라. 추측·불확실한 내용은 금지한다.`,
+    `- 각 문제의 해설에는 "판서에는 없지만 같은 단원에서 함께 알아둘 내용"이라는 점이 드러나게 써라.`,
+    `유형은 객관식(choice, 4지선다)·단답형(short)·OX(ox)를 골고루 섞어라. 각 문제에 정답과 한 문장 해설을 붙여라.`,
+    ``,
+    `반드시 아래 JSON 하나만 출력하라. 코드펜스·설명 금지.`,
+    `{"subject":"과목","scope":"단원/범위","summary":"판서 요약","keywords":["키워드"],"questions":[{"type":"choice|short|ox","question":"문제","choices":["①..","②..","③..","④.."],"answer":"정답(객관식은 번호기호, OX는 O 또는 X)","explanation":"한 문장 해설"}]}`,
+    `choices는 choice일 때만 채우고 short·ox에서는 빈 배열 []로 둬라.`,
+  ].join("\n");
+}
+
+async function handleQuizImage(request, env) {
+  if (request.method !== "POST") {
+    return new Response("method not allowed", { status: 405 });
+  }
+
+  const apiKey = (env.ANTHROPIC_API_KEY || "").trim();
+  if (!apiKey) {
+    return jsonResponse({ error: "ANTHROPIC_API_KEY가 설정되지 않았습니다." }, 503);
+  }
+
+  const url = new URL(request.url);
+  const level = url.searchParams.get("level") || "고2";
+  const count = Math.min(Math.max(parseInt(url.searchParams.get("count"), 10) || 4, 1), 10);
+
+  const buf = await request.arrayBuffer();
+  if (!buf || buf.byteLength === 0) {
+    return jsonResponse({ error: "이미지가 비어 있습니다." }, 400);
+  }
+
+  const b64 = arrayBufferToBase64(buf);
+  let mediaType = request.headers.get("content-type") || "image/jpeg";
+  if (!/^image\/(jpeg|png|gif|webp)$/.test(mediaType)) mediaType = "image/jpeg";
+
+  const prompt = buildBeyondQuizPrompt(level, count);
+
+  let res;
+  try {
+    res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
+        "user-agent": "greennote/1.0 (+https://greennote.simpleornothing.com)",
+      },
+      body: JSON.stringify({
+        model: QUIZ_MODEL,
+        max_tokens: 2000,
+        messages: [{ role: "user", content: [
+          { type: "image", source: { type: "base64", media_type: mediaType, data: b64 } },
+          { type: "text", text: prompt },
+        ]}],
+      }),
+    });
+  } catch (e) {
+    return jsonResponse({ error: "모델 호출 중 네트워크 오류", detail: String(e).slice(0, 300) }, 502);
+  }
+
+  if (!res.ok) {
+    const t = await res.text();
+    return jsonResponse({ error: `모델 호출 실패 (${res.status})`, detail: t.slice(0, 300) }, 502);
+  }
+
+  const data = await res.json();
+  const text = (data.content || []).filter(b => b.type === "text").map(b => b.text).join("\n");
+  const parsed = parseQuizJSON(text);
+  if (!parsed || !Array.isArray(parsed.questions)) {
+    return jsonResponse({ error: "문제 생성 결과를 해석하지 못했습니다." }, 502);
+  }
+  return jsonResponse(parsed, 200);
+}
+
 // POST /api/quiz-more — 같은 주제로 새 문제 생성 (이미지 X, 요약·키워드 기반 / 중복 회피)
 // 1차 출제 때 받은 요약·키워드를 텍스트로 넘겨 같은 단원 범위에서 새 문제를 만든다.
-function buildQuizMorePrompt(subject, level, count, summary, keywords, exclude) {
+function buildQuizMorePrompt(subject, level, count, summary, keywords, exclude, scope) {
   return [
     `너는 한국 고등학생의 공부를 돕는 출제 선생님이다.`,
     `주제(과목): ${subject}`,
-    `학생이 정리한 핵심 내용: "${summary}"`,
+    scope ? `단원(범위): ${scope}` : ``,
+    `학생이 판서에 정리한 핵심 내용: "${summary}"`,
     `핵심 키워드: ${keywords.join(", ")}`,
     ``,
-    `위 '같은 주제(단원) 범위' 안에서 ${level} 수준의 새로운 복습 문제 ${count}개를 만들어라.`,
-    `- 학생 필기에 직접 없던 내용이라도, 같은 주제에 속하고 고등학교 교과에서 표준적으로 다루는 정확한 사실이면 출제해도 된다.`,
-    `- 추측성·불확실한 내용은 내지 말고 사실관계가 분명한 것만 출제하라.`,
+    `위 '같은 단원(범위)' 안에서 ${level} 수준의 새로운 문제 ${count}개를 만들어라.`,
+    `- 위 '판서 핵심 내용'에 이미 나온 사실·용어·개념을 그대로 묻는 문제는 만들지 마라. 판서에는 없지만 같은 단원에서 함께 알아둘 내용으로만 출제하라.`,
+    `- 같은 단원에 속하고 고등학교 교과에서 표준적으로 다루는 정확한 사실만 출제하라. 추측·불확실한 내용은 금지한다.`,
     `- 아래 '이미 출제된 문제'와 중복되거나 거의 같은 문제는 절대 내지 마라.`,
     ``,
     `[이미 출제된 문제]`,
@@ -301,8 +383,9 @@ async function handleQuizMore(request, env) {
   const summary  = ("" + (opt.summary || "")).slice(0, 1500);
   const keywords = Array.isArray(opt.keywords) ? opt.keywords.slice(0, 12) : [];
   const exclude  = Array.isArray(opt.exclude) ? opt.exclude.slice(0, 40) : [];
+  const scope    = ("" + (opt.scope || "")).slice(0, 200);
 
-  const prompt = buildQuizMorePrompt(subject, level, count, summary, keywords, exclude);
+  const prompt = buildQuizMorePrompt(subject, level, count, summary, keywords, exclude, scope);
 
   let res;
   try {
@@ -344,6 +427,7 @@ export default {
 
     if (pathname === "/api/index") return handleIndex(request, env);
     if (pathname === "/api/tags")  return handleTags(request, env);
+    if (pathname === "/api/quiz-image") return handleQuizImage(request, env);
     if (pathname === "/api/quiz-more") return handleQuizMore(request, env);
 
     const quizPrefix = "/api/quiz/";

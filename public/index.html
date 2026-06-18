@@ -3,14 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>GreenNote · 칠판 정리 노트</title>
-<meta name="description" content="매일 칠판에 정리한 필기를 과목·날짜별로 모아 관리하는 노트">
+<title>GreenNote · 판서 → 확장 문제</title>
+<meta name="description" content="판서 사진을 올리면 같은 단원 범위지만 판서에는 없는 내용으로 문제를 내주는 도구">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
 <style>
   :root{
     --bg:#ffffff; --surface:#f6f7f9; --text:#1a1d21; --muted:#5b6470;
     --border:#e6e9ee; --brand:#1257d6;
-    --del-hover-bg:#ffe1e1; --del-hover-fg:#c0392b;
   }
   *{box-sizing:border-box;}
   html,body{margin:0;background:var(--bg);}
@@ -18,150 +17,80 @@
     font-family:'Pretendard',system-ui,-apple-system,'Segoe UI',Roboto,'Apple SD Gothic Neo','Noto Sans KR',sans-serif;
     color:var(--text); padding:56px 24px; -webkit-font-smoothing:antialiased;
   }
-  .wrap{max-width:980px;margin:0 auto;}
+  .wrap{max-width:680px;margin:0 auto;}
 
-  header{margin-bottom:28px;}
-  h1{font-size:30px;font-weight:800;letter-spacing:-.5px;margin:0 0 6px;}
-  .sub{font-size:15px;color:var(--muted);margin:0;line-height:1.55;}
+  header{margin-bottom:24px;}
+  h1{font-size:28px;font-weight:800;letter-spacing:-.5px;margin:0 0 6px;}
+  .sub{font-size:15px;color:var(--muted);margin:0;line-height:1.6;}
 
   .banner{margin-top:16px;display:none;background:#fff6e5;border:1.5px solid #f0d9a8;color:#8a6212;border-radius:12px;padding:11px 15px;font-size:13px;line-height:1.55;}
   .banner.show{display:block;}
 
-  .stats{display:flex;gap:10px;margin-top:22px;flex-wrap:wrap;}
-  .stat{flex:1;min-width:120px;background:var(--surface);border:1.5px solid var(--border);border-radius:14px;padding:16px 18px;}
-  .stat .num{font-size:24px;font-weight:800;letter-spacing:-.5px;}
-  .stat .lbl{font-size:13px;color:var(--muted);margin-top:2px;}
-
-  .dropzone{margin-top:22px;border:1.5px dashed var(--border);border-radius:14px;padding:30px 22px;text-align:center;color:var(--muted);font-size:14px;cursor:pointer;transition:.15s;background:var(--bg);}
-  .dropzone:hover{border-color:var(--brand);}
-  .dropzone.is-over{border-color:var(--brand);background:rgba(18,87,214,.06);}
-  .dropzone .big{font-size:15px;color:var(--text);font-weight:600;margin-bottom:4px;}
-  .dropzone .ico{font-size:26px;display:block;margin-bottom:8px;opacity:.5;}
-
-  .toolbar{display:flex;gap:12px;align-items:center;margin:34px 0 16px;flex-wrap:wrap;}
-  .chips{display:flex;gap:7px;flex-wrap:wrap;flex:1;}
+  .opts{display:flex;gap:8px;margin-top:18px;flex-wrap:wrap;align-items:center;}
+  .opts .lbl{font-size:13px;font-weight:600;color:var(--muted);}
   .chip{border:1.5px solid var(--border);background:var(--surface);color:var(--muted);border-radius:999px;padding:6px 13px;font-size:13px;font-weight:600;cursor:pointer;transition:.12s;font-family:inherit;white-space:nowrap;}
   .chip:hover{border-color:var(--brand);color:var(--brand);}
   .chip.active{background:var(--brand);border-color:var(--brand);color:#fff;}
-  .search{border:1.5px solid var(--border);border-radius:10px;padding:8px 12px;font-size:13px;font-family:inherit;color:var(--text);min-width:160px;outline:none;background:var(--bg);}
-  .search:focus{border-color:var(--brand);}
 
-  .group{margin-bottom:34px;}
-  .group-head{display:flex;align-items:baseline;gap:10px;margin:0 0 14px;padding-bottom:8px;border-bottom:1px solid var(--border);}
-  .group-head h2{font-size:18px;font-weight:700;letter-spacing:-.3px;margin:0;}
-  .group-head .count{font-size:13px;color:var(--muted);}
+  .dropzone{margin-top:18px;border:1.5px dashed var(--border);border-radius:14px;padding:34px 22px;text-align:center;color:var(--muted);font-size:14px;cursor:pointer;transition:.15s;background:var(--bg);}
+  .dropzone:hover{border-color:var(--brand);}
+  .dropzone.is-over{border-color:var(--brand);background:rgba(18,87,214,.06);}
+  .dropzone .big{font-size:15px;color:var(--text);font-weight:600;margin-bottom:4px;}
+  .dropzone .ico{font-size:30px;display:block;margin-bottom:10px;opacity:.5;}
 
-  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
-  .card{background:var(--surface);border:1.5px solid var(--border);border-radius:14px;overflow:hidden;transition:.15s;cursor:pointer;position:relative;}
-  .card:hover{border-color:var(--brand);box-shadow:0 4px 18px rgba(18,87,214,.10);}
-  .card .thumb{width:100%;aspect-ratio:4/3;background:#dfe3ea center/cover no-repeat;display:block;}
-  .card .thumb.skeleton{background:linear-gradient(100deg,#e9ecf1 30%,#f3f5f8 50%,#e9ecf1 70%);background-size:200% 100%;animation:sk 1.2s infinite;}
-  .card .thumb.video-thumb{position:relative;background:#000;display:flex;align-items:center;justify-content:center;}
-  .card .thumb-video{width:100%;height:100%;object-fit:cover;display:block;}
-  .card .play-badge{position:absolute;width:46px;height:46px;border-radius:50%;background:rgba(0,0,0,.55);color:#fff;display:flex;align-items:center;justify-content:center;font-size:18px;padding-left:3px;pointer-events:none;}
-  @keyframes sk{0%{background-position:200% 0}100%{background-position:-200% 0}}
-  .card .body{padding:13px 14px 15px;}
-  .badge{display:inline-block;font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:999px;margin-bottom:7px;}
-  .card h3{font-size:15px;font-weight:700;margin:0 0 3px;line-height:1.4;}
-  .card .memo{font-size:12.5px;color:var(--muted);line-height:1.6;margin:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
-  .card .tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:7px;}
-  .tag{font-size:11.5px;font-weight:600;color:var(--brand);background:rgba(18,87,214,.09);border-radius:999px;padding:2px 8px;}
-  .field input[type=text]:disabled{background:var(--surface);color:var(--muted);cursor:default;}
-  .tags-hint{font-size:12px;color:var(--muted);margin-top:5px;min-height:16px;display:flex;align-items:center;gap:5px;}
-  @keyframes spin{to{transform:rotate(360deg)}}
-  .tags-hint .spinner{width:11px;height:11px;border:2px solid var(--border);border-top-color:var(--brand);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0;}
-  .card .del{position:absolute;top:8px;right:8px;width:26px;height:26px;border-radius:7px;border:none;background:rgba(255,255,255,.92);color:var(--muted);cursor:pointer;font-size:15px;line-height:1;opacity:0;transition:.12s;display:flex;align-items:center;justify-content:center;}
-  .card:hover .del{opacity:1;}
-  .card .del:hover{background:var(--del-hover-bg);color:var(--del-hover-fg);}
-
-  .empty{text-align:center;color:var(--muted);font-size:14px;padding:54px 20px;border:1.5px dashed var(--border);border-radius:14px;line-height:1.7;}
-  .empty .ico{font-size:34px;display:block;margin-bottom:10px;opacity:.45;}
-
-  .overlay{position:fixed;inset:0;background:rgba(20,24,30,.55);backdrop-filter:blur(2px);display:none;align-items:center;justify-content:center;padding:24px;z-index:50;}
-  .overlay.show{display:flex;}
-  .modal{background:var(--bg);border-radius:16px;max-width:440px;width:100%;padding:24px;box-shadow:0 24px 60px rgba(18,40,80,.28);max-height:90vh;overflow:auto;}
-  .modal h2{font-size:19px;font-weight:800;letter-spacing:-.3px;margin:0 0 16px;}
-  .modal .preview{width:100%;border-radius:12px;border:1.5px solid var(--border);margin-bottom:16px;display:block;}
-  .field{margin-bottom:14px;}
-  .field label{display:block;font-size:13px;font-weight:600;color:var(--muted);margin-bottom:6px;}
-  .field input[type=text],.field input[type=date],.field textarea{width:100%;border:1.5px solid var(--border);border-radius:10px;padding:9px 12px;font-size:14px;font-family:inherit;color:var(--text);outline:none;background:var(--bg);}
-  .field input:focus,.field textarea:focus{border-color:var(--brand);}
-  .field textarea{resize:vertical;min-height:64px;line-height:1.55;}
-  .subj-pick{display:flex;flex-wrap:wrap;gap:7px;}
-  .subj-pick .chip.active{box-shadow:0 0 0 2px rgba(18,87,214,.18);}
-  .modal-actions{display:flex;gap:10px;margin-top:8px;}
-  .btn{flex:1;border:none;border-radius:11px;padding:11px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;transition:.12s;}
-  .btn-primary{background:var(--brand);color:#fff;}
-  .btn-primary:hover{background:#0f49b3;}
-  .btn-primary:disabled{opacity:.5;cursor:default;}
-  .btn-ghost{background:var(--surface);color:var(--muted);border:1.5px solid var(--border);}
-  .btn-ghost:hover{border-color:var(--brand);color:var(--brand);}
-
-  .light{position:fixed;inset:0;background:rgba(12,14,18,.9);display:none;flex-direction:column;align-items:center;justify-content:center;z-index:60;padding:30px;}
-  .light.show{display:flex;}
-  .light img{max-width:92vw;max-height:74vh;border-radius:10px;box-shadow:0 20px 60px rgba(0,0,0,.5);}
-  .light video{max-width:92vw;max-height:74vh;border-radius:10px;box-shadow:0 20px 60px rgba(0,0,0,.5);background:#000;}
-  .light .meta{color:#fff;text-align:center;margin-top:16px;max-width:680px;}
-  .light .meta .lb-badge{font-size:12px;font-weight:700;padding:3px 10px;border-radius:999px;background:rgba(255,255,255,.18);}
-  .light .meta h3{font-size:18px;font-weight:700;margin:10px 0 4px;}
-  .light .meta p{font-size:13.5px;color:#cdd3dc;line-height:1.65;margin:0;white-space:pre-wrap;}
-  .light .close{position:absolute;top:20px;right:22px;background:none;border:none;color:#fff;font-size:30px;cursor:pointer;opacity:.8;}
-  .light .close:hover{opacity:1;}
-
-  .footer-tools{display:flex;gap:10px;justify-content:center;margin-top:18px;}
-  .link-btn{background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;font-family:inherit;text-decoration:underline;text-underline-offset:3px;}
-  .link-btn:hover{color:var(--brand);}
+  .board-preview{margin-top:20px;display:none;}
+  .board-preview.show{display:block;}
+  .board-preview img{width:100%;border-radius:14px;border:1.5px solid var(--border);display:block;}
+  .reset-row{display:flex;justify-content:flex-end;margin-top:12px;}
+  .reset-btn{border:1.5px solid var(--border);background:var(--bg);color:var(--muted);border-radius:10px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:.12s;}
+  .reset-btn:hover{border-color:var(--brand);color:var(--brand);}
 
   .update-stamp{position:fixed;left:14px;bottom:12px;font-size:11.5px;color:var(--muted);opacity:.7;z-index:80;pointer-events:none;}
 
   .toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--text);color:#fff;padding:11px 20px;border-radius:999px;font-size:13.5px;font-weight:600;opacity:0;pointer-events:none;transition:.25s;z-index:90;}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 
-  @media(max-width:640px){ body{padding:36px 16px;} .grid{grid-template-columns:repeat(2,1fr);} h1{font-size:25px;}
-    .toolbar{flex-direction:column;align-items:stretch;gap:10px;}
-    .chips{flex:none;}
-    .search{width:100%;min-width:0;box-sizing:border-box;} }
+  @media(max-width:640px){ body{padding:36px 16px;} h1{font-size:24px;} }
 
   /* ===== greennote 퀴즈 ===== */
-  .gq-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;z-index:1000;padding:20px;overflow:auto}
-  .gq-overlay.show{display:flex;align-items:flex-start;justify-content:center}
-  .gq-modal{position:relative;background:var(--bg,#fff);color:var(--text,#1a1d21);width:100%;max-width:640px;margin:auto;border-radius:16px;padding:26px 22px;box-shadow:0 20px 60px rgba(0,0,0,.25)}
-  .gq-close{position:absolute;top:14px;right:14px;width:30px;height:30px;border:none;border-radius:8px;background:var(--surface,#f6f7f9);color:var(--muted,#5b6470);font-size:20px;line-height:1;cursor:pointer}
-  .gq-loading{display:flex;align-items:center;gap:10px;color:var(--muted,#5b6470);font-size:14px;padding:30px 4px}
-  .gq-spin{width:16px;height:16px;border:2.5px solid var(--border,#e6e9ee);border-top-color:var(--brand,#1257d6);border-radius:50%;animation:gq-sp .7s linear infinite}
+  #quizArea{margin-top:24px;}
+  .gq-loading{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:14px;padding:30px 4px}
+  .gq-spin{width:16px;height:16px;border:2.5px solid var(--border);border-top-color:var(--brand);border-radius:50%;animation:gq-sp .7s linear infinite}
   @keyframes gq-sp{to{transform:rotate(360deg)}}
   .gq-err{color:#c0392b;background:#fdeaea;border-radius:12px;padding:13px 15px;font-size:13.5px}
-  .gq-summary{background:var(--surface,#f6f7f9);border:1.5px solid var(--border,#e6e9ee);border-radius:14px;padding:16px 18px;margin-bottom:20px}
-  .gq-summary h3{font-size:13px;font-weight:700;color:var(--muted,#5b6470);margin:0 0 8px}
+  .gq-summary{background:var(--surface);border:1.5px solid var(--border);border-radius:14px;padding:16px 18px;margin-bottom:20px}
+  .gq-summary h3{font-size:13px;font-weight:700;color:var(--muted);margin:0 0 8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .gq-scope{font-size:11.5px;font-weight:700;color:var(--brand);background:rgba(18,87,214,.09);padding:3px 9px;border-radius:999px}
   .gq-summary p{font-size:14px;line-height:1.7;margin:0 0 11px}
   .gq-tags{display:flex;flex-wrap:wrap;gap:6px}
-  .gq-tag{font-size:12px;font-weight:600;color:var(--brand,#1257d6);background:rgba(18,87,214,.08);padding:4px 10px;border-radius:8px}
-  .gq-qhead{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:12px}
+  .gq-tag{font-size:12px;font-weight:600;color:var(--brand);background:rgba(18,87,214,.08);padding:4px 10px;border-radius:8px}
+  .gq-qhead{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px;gap:10px}
   .gq-qhead h3{font-size:18px;font-weight:700;margin:0;letter-spacing:-0.3px}
-  .gq-score{font-size:14px;font-weight:700;color:var(--brand,#1257d6)}
-  .gq-q{background:var(--surface,#f6f7f9);border:1.5px solid var(--border,#e6e9ee);border-radius:14px;padding:18px;margin-bottom:12px}
+  .gq-qhead .gq-score{font-size:14px;font-weight:700;color:var(--brand)}
+  .gq-qhint{font-size:12.5px;color:var(--muted);margin:0 0 14px;line-height:1.5}
+  .gq-q{background:var(--surface);border:1.5px solid var(--border);border-radius:14px;padding:18px;margin-bottom:12px}
   .gq-q.gq-correct{border-color:#1b8a5a}
   .gq-q.gq-wrong{border-color:#c0392b}
   .gq-qtop{display:flex;gap:8px;margin-bottom:10px}
-  .gq-num{font-size:12px;font-weight:700;color:#fff;background:var(--brand,#1257d6);width:23px;height:23px;border-radius:7px;display:flex;align-items:center;justify-content:center}
-  .gq-type{font-size:11px;font-weight:700;color:var(--muted,#5b6470);background:rgba(127,127,127,.14);padding:4px 9px;border-radius:6px;align-self:center}
+  .gq-num{font-size:12px;font-weight:700;color:#fff;background:var(--brand);width:23px;height:23px;border-radius:7px;display:flex;align-items:center;justify-content:center}
+  .gq-type{font-size:11px;font-weight:700;color:var(--muted);background:rgba(127,127,127,.14);padding:4px 9px;border-radius:6px;align-self:center}
   .gq-text{font-size:15px;font-weight:600;line-height:1.6;margin:0 0 12px}
   .gq-choices{display:flex;flex-direction:column;gap:7px;margin-bottom:12px}
-  .gq-c{font:inherit;font-size:14px;line-height:1.5;text-align:left;width:100%;padding:9px 12px;background:var(--bg,#fff);color:var(--text,#1a1d21);border:1.5px solid var(--border,#e6e9ee);border-radius:10px;cursor:pointer;transition:.12s}
-  .gq-c:hover:not(:disabled){border-color:var(--brand,#1257d6)}
+  .gq-c{font:inherit;font-size:14px;line-height:1.5;text-align:left;width:100%;padding:9px 12px;background:var(--bg);color:var(--text);border:1.5px solid var(--border);border-radius:10px;cursor:pointer;transition:.12s}
+  .gq-c:hover:not(:disabled){border-color:var(--brand)}
   .gq-c:disabled{cursor:default}
-  .gq-c.sel{border-color:var(--brand,#1257d6);background:rgba(18,87,214,.08);font-weight:700}
+  .gq-c.sel{border-color:var(--brand);background:rgba(18,87,214,.08);font-weight:700}
   .gq-c.ans{border-color:#1b8a5a;background:#e8f6ef;font-weight:700}
   .gq-c.wrongsel{border-color:#c0392b;background:#fdeaea}
   .gq-oxpick{display:flex;gap:10px;margin-bottom:12px}
-  .gq-ox{flex:1;font:inherit;font-size:20px;font-weight:800;padding:14px;border-radius:12px;cursor:pointer;border:1.5px solid var(--border,#e6e9ee);background:var(--bg,#fff);color:var(--muted,#5b6470);transition:.12s}
-  .gq-ox:hover:not(:disabled){border-color:var(--brand,#1257d6)}
+  .gq-ox{flex:1;font:inherit;font-size:20px;font-weight:800;padding:14px;border-radius:12px;cursor:pointer;border:1.5px solid var(--border);background:var(--bg);color:var(--muted);transition:.12s}
+  .gq-ox:hover:not(:disabled){border-color:var(--brand)}
   .gq-ox:disabled{cursor:default}
-  .gq-ox.sel{border-color:var(--brand,#1257d6);background:rgba(18,87,214,.08);color:var(--brand,#1257d6)}
+  .gq-ox.sel{border-color:var(--brand);background:rgba(18,87,214,.08);color:var(--brand)}
   .gq-ox.ans{border-color:#1b8a5a;background:#e8f6ef;color:#1b8a5a}
   .gq-ox.wrongsel{border-color:#c0392b;background:#fdeaea;color:#c0392b}
-  .gq-input{width:100%;font:inherit;font-size:14px;padding:10px 12px;margin-bottom:12px;border:1.5px solid var(--border,#e6e9ee);border-radius:10px;background:var(--bg,#fff);color:var(--text,#1a1d21);outline:none}
-  .gq-input:focus{border-color:var(--brand,#1257d6)}
+  .gq-input{width:100%;font:inherit;font-size:14px;padding:10px 12px;margin-bottom:12px;border:1.5px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);outline:none}
+  .gq-input:focus{border-color:var(--brand)}
   .gq-input:disabled{cursor:default}
   .gq-input.gq-input-ok{border-color:#1b8a5a;background:#e8f6ef;font-weight:700}
   .gq-input.gq-input-no{border-color:#c0392b;background:#fdeaea}
@@ -169,174 +98,69 @@
   .gq-ansbox.show{display:block}
   .gq-a{font-size:14px;font-weight:700;margin:0 0 5px}
   .gq-a b{color:#1b8a5a}
-  .gq-exp{font-size:13px;color:var(--muted,#5b6470);line-height:1.6;margin:0 0 11px}
-  .gq-submit{width:100%;font:inherit;font-size:15px;font-weight:700;color:#fff;background:var(--brand,#1257d6);border:none;border-radius:12px;padding:13px;cursor:pointer;margin-top:4px}
+  .gq-exp{font-size:13px;color:var(--muted);line-height:1.6;margin:0 0 11px}
+  .gq-submit{width:100%;font:inherit;font-size:15px;font-weight:700;color:#fff;background:var(--brand);border:none;border-radius:12px;padding:13px;cursor:pointer;margin-top:4px}
   .gq-submit:hover:not(:disabled){background:#0f49b3}
   .gq-submit:disabled{opacity:.6;cursor:default}
-  .gq-more{margin-top:6px;width:100%;border:1.5px solid var(--border,#e6e9ee);background:var(--bg,#fff);color:var(--brand,#1257d6);font:inherit;font-size:14px;font-weight:700;padding:13px;border-radius:12px;cursor:pointer;transition:.12s}
-  .gq-more:hover{border-color:var(--brand,#1257d6);background:rgba(18,87,214,.06)}
-  .gq-more:disabled{color:var(--muted,#5b6470);cursor:default;border-color:var(--border,#e6e9ee);background:var(--surface,#f6f7f9)}
-  .gq-row{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px 8px;margin-bottom:7px}
-  .gq-row .badge{margin-bottom:0;white-space:nowrap;flex-shrink:0}
-  .gq-btn{flex-shrink:0;white-space:nowrap;font:inherit;font-size:12.5px;font-weight:700;color:var(--brand,#1257d6);background:rgba(18,87,214,.08);border:none;border-radius:9px;padding:6px 11px;cursor:pointer;transition:.12s}
-  .gq-btn:hover{background:rgba(18,87,214,.16)}
+  .gq-more{margin-top:6px;width:100%;border:1.5px solid var(--border);background:var(--bg);color:var(--brand);font:inherit;font-size:14px;font-weight:700;padding:13px;border-radius:12px;cursor:pointer;transition:.12s}
+  .gq-more:hover{border-color:var(--brand);background:rgba(18,87,214,.06)}
+  .gq-more:disabled{color:var(--muted);cursor:default;border-color:var(--border);background:var(--surface)}
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
-    <h1>📋 칠판 정리 노트 <span style="font-size:15px;font-weight:600;color:var(--muted);">GreenNote</span></h1>
-    <p class="sub">매일 칠판에 정리한 필기를 사진으로 올려서 과목·날짜별로 모아두는 곳이에요.<br>사진을 끌어다 놓거나 눌러서 추가하면 됩니다.</p>
+    <h1>📋 판서 → 확장 문제</h1>
+    <p class="sub">판서(칠판) 사진을 올리면, <b>같은 단원 범위지만 판서에는 없는 내용</b>으로 문제를 바로 내드려요.<br>판서를 외운 것에 그치지 않고, 그 단원에서 함께 알아둘 내용까지 점검할 수 있어요.</p>
     <div class="banner" id="banner"></div>
-    <div class="stats" id="stats"></div>
   </header>
+
+  <div class="opts">
+    <span class="lbl">난이도</span>
+    <div class="chips" id="levelChips"></div>
+    <span class="lbl" style="margin-left:8px;">문항 수</span>
+    <div class="chips" id="countChips"></div>
+  </div>
 
   <div class="dropzone" id="dropzone">
     <span class="ico">📷</span>
-    <div class="big">사진·동영상을 여기로 끌어다 놓거나 눌러서 추가</div>
-    <div>JPG · PNG · MP4 · MOV · 여러 개도 한 번에 가능</div>
+    <div class="big">판서 사진을 여기로 끌어다 놓거나 눌러서 올리기</div>
+    <div>JPG · PNG · HEIC · 올리면 곧바로 문제가 나와요</div>
   </div>
-  <input type="file" id="fileInput" accept="image/*,video/*" multiple hidden>
+  <input type="file" id="fileInput" accept="image/*" hidden>
 
-  <div class="toolbar">
-    <div class="chips" id="filterChips"></div>
-    <input class="search" id="searchInput" type="text" placeholder="제목·메모 검색">
+  <div class="board-preview" id="boardPreview">
+    <img id="boardImg" alt="올린 판서">
+    <div class="reset-row"><button class="reset-btn" id="resetBtn">다른 판서 올리기</button></div>
   </div>
 
-  <div id="content"></div>
-
-  <div class="footer-tools">
-    <button class="link-btn" id="exportBtn">백업 내보내기</button>
-    <button class="link-btn" id="importBtn">백업 불러오기</button>
-    <input type="file" id="importInput" accept="application/json" hidden>
-  </div>
-</div>
-<div class="update-stamp" id="updateStamp">업데이트: 2026-05-27 23:57</div>
-
-<div class="overlay" id="composeOverlay">
-  <div class="modal">
-    <h2 id="composeTitle">기록 추가</h2>
-    <img class="preview" id="composePreview" alt="">
-    <video class="preview" id="composePreviewVideo" controls playsinline style="display:none;"></video>
-    <div class="field"><label>날짜</label><input type="date" id="fDate"></div>
-    <div class="field"><label>과목</label><div class="subj-pick" id="subjPick"></div></div>
-    <div class="field"><label>단원 / 제목 <span style="font-weight:400;">(선택)</span></label><input type="text" id="fTitle" placeholder="예) 신미양요 (1871)"></div>
-    <div class="field"><label>메모 <span style="font-weight:400;">(선택)</span></label><textarea id="fMemo" placeholder="외울 포인트, 헷갈린 부분 등"></textarea></div>
-    <div class="field">
-      <label>해시태그 <span style="font-weight:400;">(AI 자동 생성 · 수정 가능)</span></label>
-      <input type="text" id="fTags" placeholder="예) 시험범위 핵심정리 신미양요">
-      <div class="tags-hint" id="tagsHint"></div>
-    </div>
-    <div class="modal-actions">
-      <button class="btn btn-ghost" id="composeCancel">취소</button>
-      <button class="btn btn-primary" id="composeSave">저장</button>
-    </div>
-  </div>
+  <div id="quizArea"></div>
 </div>
 
-<div class="light" id="lightbox">
-  <button class="close" id="lightClose">×</button>
-  <img id="lightImg" alt="">
-  <video id="lightVideo" controls playsinline style="display:none;"></video>
-  <div class="meta" id="lightMeta"></div>
-</div>
-
+<div class="update-stamp" id="updateStamp">업데이트: 2026-06-18</div>
 <div class="toast" id="toast"></div>
 
 <script>
-const SUBJECTS = {
-  '국어':   {bg:'#fdecec', fg:'#b3261e'},
-  '영어':   {bg:'#e8f0fe', fg:'#1257d6'},
-  '수학':   {bg:'#e7f6ec', fg:'#1b7a3e'},
-  '한국사': {bg:'#fbeede', fg:'#9a6212'},
-  '사회':   {bg:'#f0ecfb', fg:'#6b3fb0'},
-  '과학':   {bg:'#e6f4f6', fg:'#0d6e7a'},
-  '기타':   {bg:'#eef1f5', fg:'#5b6470'},
-};
-const DAYS = ['일','월','화','수','목','금','토'];
+const LEVELS = ['중3','고1','고2','고3'];
+const COUNTS = [3,4,5];
+let curLevel = '고2';
+let curCount = 4;
 
-/* ── 저장소: Cloudflare R2 (Worker API 경유) ──
-   - GET    api/index        : 기록 목록(메타데이터) 조회
-   - PUT    api/index        : 기록 목록 저장
-   - GET    api/image/{id}   : 사진 조회
-   - PUT    api/image/{id}   : 사진 업로드
-   - DELETE api/image/{id}   : 사진 삭제
-   - POST   api/tags         : 이미지 바이너리 → Claude Vision → 한국어 태그 배열
-   사진은 R2 객체로, 목록은 index.json 으로 보관된다. */
-const api = {
-  base: 'api',
-  async getIndex(){ const r=await fetch(`${this.base}/index`,{cache:'no-store'}); if(!r.ok) throw new Error('index'); return r.json(); },
-  async putIndex(list){ const r=await fetch(`${this.base}/index`,{method:'PUT',headers:{'content-type':'application/json'},body:JSON.stringify(list)}); if(!r.ok) throw new Error('save'); },
-  imgUrl(id){ return `${this.base}/image/${id}`; },
-  async putImage(id,blob,contentType){ const r=await fetch(this.imgUrl(id),{method:'PUT',headers:{'content-type':contentType||blob.type||'image/jpeg'},body:blob}); if(!r.ok) throw new Error('upload'); },
-  async delImage(id){ await fetch(this.imgUrl(id),{method:'DELETE'}); },
-};
-
-// 동영상 업로드 설정 (Cloudflare Worker 요청 본문 한도를 고려한 클라이언트측 가드)
-const MAX_VIDEO_MB = 100;
-const MAX_VIDEO_BYTES = MAX_VIDEO_MB * 1024 * 1024;
-const VIDEO_EXT = /\.(mp4|mov|m4v|webm|ogg|ogv|3gp|3gpp|avi|mkv)$/i;
-function isVideoFile(f){ return (f.type||'').startsWith('video/') || VIDEO_EXT.test(f.name||''); }
-function guessVideoMime(name){
-  const ext=(name||'').split('.').pop().toLowerCase();
-  return ({mp4:'video/mp4',m4v:'video/mp4',mov:'video/quicktime',webm:'video/webm',ogv:'video/ogg',ogg:'video/ogg','3gp':'video/3gpp','3gpp':'video/3gpp',avi:'video/x-msvideo',mkv:'video/x-matroska'})[ext]||'video/mp4';
-}
-
-let state = { entries:[], filter:'전체', query:'' };
-let pendingQueue = [];
-let pendingCurrent = null;
-let previewURL = null;
-let selectedSubject = '한국사';
-
-function todayStr(){ const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
-function parseTags(s){ return (s||'').split(/[\s,，]+/).map(t=>t.replace(/^#+/,'').trim()).filter(Boolean); }
-function fmtDate(s){ const [y,m,d]=s.split('-').map(Number); const dt=new Date(y,m-1,d); return `${y}년 ${m}월 ${d}일 (${DAYS[dt.getDay()]})`; }
-function esc(s){ return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),1900); }
 function banner(msg){ const b=document.getElementById('banner'); if(msg){ b.textContent=msg; b.classList.add('show'); } else b.classList.remove('show'); }
+function esc(s){ return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
-// 태그 입력창 로딩 상태 토글
-function setTagsLoading(on){
-  const el=document.getElementById('fTags');
-  const hint=document.getElementById('tagsHint');
-  if(!el) return; // 방어: 요소 없으면 무시
-  el.disabled=on;
-  if(on){
-    el.placeholder='AI가 분석 중이에요…';
-    if(hint) hint.innerHTML='<span class="spinner"></span><span>칠판 내용을 읽는 중…</span>';
-  } else {
-    el.placeholder='예) 시험범위 핵심정리 신미양요';
-    if(hint) hint.innerHTML='';
-  }
+// ── 난이도 / 문항 수 선택 칩 ──
+function renderOpts(){
+  document.getElementById('levelChips').innerHTML = LEVELS.map(l=>
+    `<button class="chip${l===curLevel?' active':''}" data-level="${l}">${l}</button>`).join('');
+  document.getElementById('countChips').innerHTML = COUNTS.map(c=>
+    `<button class="chip${c===curCount?' active':''}" data-count="${c}">${c}문항</button>`).join('');
+  document.querySelectorAll('#levelChips .chip').forEach(b=>b.onclick=()=>{ curLevel=b.dataset.level; renderOpts(); });
+  document.querySelectorAll('#countChips .chip').forEach(b=>b.onclick=()=>{ curCount=parseInt(b.dataset.count,10); renderOpts(); });
 }
 
-// 압축된 이미지 Blob을 Worker에 보내 태그 배열을 받아옴
-// ※ 이 함수는 절대 reject하지 않음 — 실패 시 [] 반환
-async function analyzeTags(blob){
-  console.log('[GreenNote] 태그 분석 시작 · blob size =', blob?.size, 'type =', blob?.type);
-  try {
-    console.log('[GreenNote] POST api/tags 요청 중…');
-    const res = await fetch('api/tags', {
-      method: 'POST',
-      headers: { 'content-type': 'image/jpeg' },
-      body: blob,
-    });
-    console.log('[GreenNote] /api/tags 응답 status =', res.status);
-    if(!res.ok){
-      console.warn('[GreenNote] /api/tags 실패 (' + res.status + ') — 태그 없이 계속');
-      return [];
-    }
-    const d = await res.json();
-    console.log('[GreenNote] 수신 태그 =', d.tags);
-    return Array.isArray(d.tags) ? d.tags : [];
-  } catch(e) {
-    console.warn('[GreenNote] 태그 fetch 오류 (저장은 정상) :', e.message);
-    return [];
-  }
-}
-
-// HEIC/HEIF(아이폰·일부 안드로이드 기본 형식)는 Chromium 계열 브라우저가 디코딩하지 못한다.
-// 필요할 때만 CDN에서 변환 라이브러리를 불러와 JPEG으로 바꾼다.
+// ── 이미지 디코딩·압축 (HEIC 포함) ──
 let _heicLib=null;
 function loadHeic(){
   if(_heicLib) return _heicLib;
@@ -349,18 +173,13 @@ function loadHeic(){
   });
   return _heicLib;
 }
-function isHeic(file){
-  return /image\/hei[cf]/i.test(file.type||'') || /\.(heic|heif)$/i.test(file.name||'');
-}
+function isHeic(file){ return /image\/hei[cf]/i.test(file.type||'') || /\.(heic|heif)$/i.test(file.name||''); }
 async function toRenderable(file){
   if(!isHeic(file)) return file;
   const heic2any=await loadHeic();
   const out=await heic2any({ blob:file, toType:'image/jpeg', quality:0.9 });
   return Array.isArray(out) ? out[0] : out;
 }
-
-// 이미지를 디코딩한다. createImageBitmap을 우선 시도(모바일에서 메모리/디코딩이 더 안정적이고
-// EXIF 회전도 자동 적용)하고, 미지원/실패 시 <img> 엘리먼트로 폴백한다.
 async function decodeImage(file){
   if(typeof createImageBitmap==='function'){
     try{ return await createImageBitmap(file,{imageOrientation:'from-image'}); }
@@ -386,289 +205,65 @@ async function compress(file, maxDim=1200, q=0.72){
   const blob=await new Promise((res,rej)=> c.toBlob(b=> b?res(b):rej(new Error('blob')), 'image/jpeg', q));
   return blob;
 }
-function blobToDataURL(blob){ return new Promise(res=>{ const fr=new FileReader(); fr.onload=()=>res(fr.result); fr.readAsDataURL(blob); }); }
-function dataURLToBlob(d){ const [h,b]=d.split(','); const mime=(h.match(/:(.*?);/)||[])[1]||'image/jpeg'; const bin=atob(b); const u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i); return new Blob([u],{type:mime}); }
 
-async function loadIndex(){
-  try{ state.entries = await api.getIndex(); banner(''); }
-  catch(e){ state.entries=[]; banner('⚠️ 저장소(R2)에 연결되지 않았어요. Cloudflare Pages에 배포하고 greennote 버킷을 바인딩하면 정상 동작합니다.'); }
-}
-async function saveIndex(){ await api.putIndex(state.entries); }
-
-async function handleFiles(files){
-  // 일부 모바일(카메라/HEIC)은 type이 비어있을 수 있으므로 확장자도 함께 허용
-  const items=[...files].filter(f=> f.type.startsWith('image/') || isVideoFile(f) || /\.(jpe?g|png|gif|webp|heic|heif|bmp|tiff?)$/i.test(f.name||''));
-  if(!items.length){ toast('이미지·동영상 파일이 아니에요'); return; }
-  toast(items.length>1?`${items.length}개 처리 중…`:'처리 중…');
-  let failed=0, lastInfo='';
-  for(const f of items){
-    try{
-      if(isVideoFile(f)){
-        // 동영상은 압축 없이 원본 그대로 업로드한다 (브라우저에서 트랜스코딩 불가)
-        if(f.size > MAX_VIDEO_BYTES){ failed++; lastInfo=`동영상 용량 초과 (최대 ${MAX_VIDEO_MB}MB)`; continue; }
-        pendingQueue.push({ blob:f, kind:'video', mime:(f.type||guessVideoMime(f.name)) });
-      } else {
-        pendingQueue.push({ blob:await compress(f), kind:'image', mime:'image/jpeg' });
-      }
-    }
-    catch(e){
-      console.error('[GreenNote] 파일 처리 실패:', f.name, f.type, e);
-      failed++;
-      lastInfo = (f.type || (f.name||'').split('.').pop() || '?') + ' / ' + (e && e.message || e);
-    }
-  }
-  if(failed){
-    toast(failed===items.length ? `파일을 불러오지 못했어요 😢 (${lastInfo})` : `${failed}개는 불러오지 못했어요 (${lastInfo})`);
-  }
-  showNextCompose();
+// ── 사진 업로드 → 곧바로 퀴즈 ──
+let previewURL=null;
+function resetAll(){
+  if(previewURL){ URL.revokeObjectURL(previewURL); previewURL=null; }
+  document.getElementById('boardPreview').classList.remove('show');
+  document.getElementById('boardImg').removeAttribute('src');
+  document.getElementById('quizArea').innerHTML='';
+  document.getElementById('dropzone').style.display='';
+  window.scrollTo({top:0, behavior:'smooth'});
 }
 
-function showNextCompose(){
-  if(!pendingQueue.length){ pendingCurrent=null; return; }
-  pendingCurrent=pendingQueue.shift();
+async function handleFile(file){
+  if(!(file && (file.type.startsWith('image/') || isHeic(file) || /\.(jpe?g|png|gif|webp|heic|heif|bmp|tiff?)$/i.test(file.name||'')))){
+    toast('이미지 파일이 아니에요'); return;
+  }
+  toast('판서를 읽는 중…');
+  let blob;
+  try{ blob=await compress(file); }
+  catch(e){ console.error(e); toast('사진을 불러오지 못했어요 😢'); return; }
+
   if(previewURL) URL.revokeObjectURL(previewURL);
-  previewURL=URL.createObjectURL(pendingCurrent.blob);
-  selectedSubject='한국사';
-  document.getElementById('composeTitle').textContent=pendingQueue.length?`기록 추가 (남은 ${pendingQueue.length}개)`:'기록 추가';
-  const imgPrev=document.getElementById('composePreview'), vidPrev=document.getElementById('composePreviewVideo');
-  const isVid = pendingCurrent.kind==='video';
-  if(isVid){
-    imgPrev.style.display='none'; imgPrev.removeAttribute('src');
-    vidPrev.style.display=''; vidPrev.src=previewURL;
-  } else {
-    vidPrev.style.display='none'; vidPrev.removeAttribute('src');
-    imgPrev.style.display=''; imgPrev.src=previewURL;
-  }
-  document.getElementById('fDate').value=todayStr();
-  document.getElementById('fTitle').value='';
-  document.getElementById('fMemo').value='';
-  document.getElementById('fTags').value='';
-  document.getElementById('composeSave').disabled=false;
-  renderSubjPick();
-  document.getElementById('composeOverlay').classList.add('show');
+  previewURL=URL.createObjectURL(blob);
+  document.getElementById('boardImg').src=previewURL;
+  document.getElementById('boardPreview').classList.add('show');
+  document.getElementById('dropzone').style.display='none';
 
-  // 동영상은 Claude Vision 분석 대상이 아니므로 자동 태그 생략
-  if(isVid){ setTagsLoading(false); return; }
-
-  // Claude Vision 태그 자동 생성
-  // analyzeTags는 항상 resolve되므로 .catch/.finally 불필요
-  const captured = pendingCurrent;
-  console.log('[GreenNote] showNextCompose: 태그 분석 시작 · blob size =', captured.blob?.size);
-  setTagsLoading(true);
-  analyzeTags(captured.blob).then(tags => {
-    console.log('[GreenNote] showNextCompose: 태그 수신 =', tags, '/ 모달 유효?', pendingCurrent === captured);
-    // 먼저 input 활성화한 뒤 value 설정 (disabled 상태에서 값 설정 시 브라우저별 렌더링 차이 회피)
-    setTagsLoading(false);
-    if(pendingCurrent === captured){ // 취소 눌렸으면 null이 되므로 비교
-      const subjects=Object.keys(SUBJECTS);
-      const clean=tags.map(t=>String(t).replace(/\s+/g,'')).filter(t=>t && !subjects.includes(t)).slice(0,3);
-      document.getElementById('fTags').value = clean.join(' ');
-    }
-  });
-}
-
-async function saveCompose(){
-  if(!pendingCurrent) return;
-  const btn=document.getElementById('composeSave'); btn.disabled=true;
-  const id=Date.now().toString(36)+Math.random().toString(36).slice(2,6);
-  const entry={ id, date:document.getElementById('fDate').value||todayStr(), subject:selectedSubject,
-    kind:pendingCurrent.kind, title:document.getElementById('fTitle').value.trim(), memo:document.getElementById('fMemo').value.trim(),
-    tags:parseTags(document.getElementById('fTags').value), createdAt:Date.now() };
-  try{
-    await api.putImage(id, pendingCurrent.blob, pendingCurrent.mime);
-    state.entries.push(entry);
-    await saveIndex();
-    toast('저장됐어요 ✓');
-  }catch(e){ toast('저장 실패 😢 (저장소 연결 확인)'); btn.disabled=false; return; }
-  pendingCurrent=null;
-  document.getElementById('composeOverlay').classList.remove('show');
-  render();
-  if(pendingQueue.length) setTimeout(showNextCompose,180);
-}
-
-async function deleteEntry(id){
-  if(!confirm('이 기록을 삭제할까요?')) return;
-  state.entries=state.entries.filter(e=>e.id!==id);
-  try{ await saveIndex(); await api.delImage(id); }catch(e){ toast('삭제 실패 😢'); return; }
-  render(); toast('삭제됐어요');
-}
-
-function renderSubjPick(){
-  const box=document.getElementById('subjPick');
-  box.innerHTML=Object.keys(SUBJECTS).map(s=>{
-    const c=SUBJECTS[s], active=s===selectedSubject;
-    return `<button class="chip${active?' active':''}" data-subj="${s}" style="${active?`background:${c.bg};color:${c.fg};border-color:${c.bg};`:''}">${s}</button>`;
-  }).join('');
-  box.querySelectorAll('.chip').forEach(b=>b.onclick=()=>{ selectedSubject=b.dataset.subj; renderSubjPick(); });
-}
-
-function renderStats(){
-  const total=state.entries.length;
-  const now=new Date(), ym=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-  const month=state.entries.filter(e=>e.date.startsWith(ym)).length;
-  const days=new Set(state.entries.map(e=>e.date)).size;
-  document.getElementById('stats').innerHTML=`
-    <div class="stat"><div class="num">${total}</div><div class="lbl">전체 기록</div></div>
-    <div class="stat"><div class="num">${month}</div><div class="lbl">이번 달</div></div>
-    <div class="stat"><div class="num">${days}</div><div class="lbl">공부한 날</div></div>`;
-}
-
-function renderFilters(){
-  const used=[...new Set(state.entries.map(e=>e.subject))];
-  const order=Object.keys(SUBJECTS).filter(s=>used.includes(s));
-  document.getElementById('filterChips').innerHTML=['전체',...order].map(s=>
-    `<button class="chip${state.filter===s?' active':''}" data-f="${s}">${s}</button>`).join('');
-  document.querySelectorAll('#filterChips .chip').forEach(b=>b.onclick=()=>{ state.filter=b.dataset.f; render(); });
-}
-
-function renderContent(){
-  const c=document.getElementById('content');
-  let list=state.entries.slice();
-  if(state.filter!=='전체') list=list.filter(e=>e.subject===state.filter);
-  if(state.query){ const q=state.query.toLowerCase();
-    list=list.filter(e=>(e.title||'').toLowerCase().includes(q)||(e.memo||'').toLowerCase().includes(q)||e.subject.toLowerCase().includes(q)||(e.tags||[]).some(t=>t.toLowerCase().includes(q))); }
-  list.sort((a,b)=> a.date<b.date?1 : a.date>b.date?-1 : b.createdAt-a.createdAt);
-
-  if(!list.length){
-    c.innerHTML=state.entries.length
-      ? `<div class="empty"><span class="ico">🔍</span>조건에 맞는 기록이 없어요.</div>`
-      : `<div class="empty"><span class="ico">🗒️</span>아직 기록이 없어요.<br>위에서 칠판 사진을 추가해보세요!</div>`;
-    return;
-  }
-  const groups={};
-  list.forEach(e=>{ (groups[e.date]=groups[e.date]||[]).push(e); });
-  c.innerHTML=Object.keys(groups).sort().reverse().map(date=>{
-    const items=groups[date].map(e=>{
-      const col=SUBJECTS[e.subject]||SUBJECTS['기타'];
-      const isVid=e.kind==='video';
-      const thumb=isVid
-        ? `<div class="thumb video-thumb skeleton" data-vid="${e.id}"><video class="thumb-video" preload="metadata" muted playsinline></video><span class="play-badge">▶</span></div>`
-        : `<div class="thumb skeleton" data-img="${e.id}"></div>`;
-      return `<div class="card" data-id="${e.id}">
-        <button class="del" data-del="${e.id}" title="삭제">×</button>
-        ${thumb}
-        <div class="body">
-          <div class="gq-row">
-            <span class="badge" style="background:${col.bg};color:${col.fg}">${e.subject}</span>
-            ${isVid?'':`<button class="gq-btn" data-id="${e.id}" data-subject="${esc(e.subject)}">문제 풀기</button>`}
-          </div>
-          ${e.title?`<h3>${esc(e.title)}</h3>`:''}
-          ${e.memo?`<p class="memo">${esc(e.memo)}</p>`:''}
-          ${e.tags&&e.tags.length?`<div class="tags">${e.tags.map(t=>`<span class="tag">#${esc(t)}</span>`).join('')}</div>`:''}
-        </div></div>`;
-    }).join('');
-    return `<section class="group">
-      <div class="group-head"><h2>${fmtDate(date)}</h2><span class="count">${groups[date].length}개</span></div>
-      <div class="grid">${items}</div></section>`;
-  }).join('');
-
-  c.querySelectorAll('.thumb[data-img]').forEach(el=>{
-    const src=api.imgUrl(el.dataset.img), im=new Image();
-    im.onload=()=>{ el.style.backgroundImage=`url(${src})`; el.classList.remove('skeleton'); };
-    im.onerror=()=>el.classList.remove('skeleton');
-    im.src=src;
-  });
-  c.querySelectorAll('.thumb[data-vid]').forEach(el=>{
-    const v=el.querySelector('video');
-    // #t=0.1 로 첫 프레임을 썸네일처럼 표시
-    v.src=api.imgUrl(el.dataset.vid)+'#t=0.1';
-    v.onloadeddata=()=>el.classList.remove('skeleton');
-    v.onerror=()=>el.classList.remove('skeleton');
-  });
-  c.querySelectorAll('.card').forEach(card=>{
-    card.onclick=(ev)=>{ if(ev.target.dataset.del) return; if(ev.target.closest('.gq-btn')) return; openLight(card.dataset.id); };
-  });
-  c.querySelectorAll('[data-del]').forEach(b=>b.onclick=(ev)=>{ ev.stopPropagation(); deleteEntry(b.dataset.del); });
-}
-
-function render(){ renderStats(); renderFilters(); renderContent(); }
-
-function openLight(id){
-  const e=state.entries.find(x=>x.id===id); if(!e) return;
-  const img=document.getElementById('lightImg'), vid=document.getElementById('lightVideo');
-  if(e.kind==='video'){
-    img.style.display='none'; img.removeAttribute('src');
-    vid.style.display=''; vid.src=api.imgUrl(id);
-  } else {
-    vid.pause(); vid.style.display='none'; vid.removeAttribute('src');
-    img.style.display=''; img.src=api.imgUrl(id);
-  }
-  document.getElementById('lightMeta').innerHTML=
-    `<span class="lb-badge">${e.subject}</span>
-     <h3>${esc(e.title)||fmtDate(e.date)}</h3>
-     <p>${e.title?fmtDate(e.date)+(e.memo?'\n\n'+esc(e.memo):''):esc(e.memo)}</p>
-     ${e.tags&&e.tags.length?`<div style="display:flex;flex-wrap:wrap;gap:5px;justify-content:center;margin-top:10px;">${e.tags.map(t=>`<span style="font-size:12px;font-weight:600;color:#a0b8e8;background:rgba(255,255,255,.13);border-radius:999px;padding:3px 10px;">#${esc(t)}</span>`).join('')}</div>`:''}`;
-  document.getElementById('lightbox').classList.add('show');
-}
-function closeLight(){ const v=document.getElementById('lightVideo'); v.pause(); document.getElementById('lightbox').classList.remove('show'); }
-
-async function exportData(){
-  toast('백업 만드는 중…');
-  const images={};
-  for(const e of state.entries){
-    try{ const r=await fetch(api.imgUrl(e.id)); if(r.ok) images[e.id]=await blobToDataURL(await r.blob()); }catch(_){}
-  }
-  const blob=new Blob([JSON.stringify({version:1,index:state.entries,images})],{type:'application/json'});
-  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
-  a.download=`greennote_backup_${todayStr()}.json`; a.click(); URL.revokeObjectURL(a.href);
-  toast('백업 파일을 내려받았어요');
-}
-async function importData(file){
-  try{
-    const data=JSON.parse(await file.text());
-    if(!data.index) throw 0;
-    let added=0;
-    for(const e of data.index){
-      if(state.entries.some(x=>x.id===e.id)) continue;
-      const img=data.images?.[e.id];
-      if(img){ await api.putImage(e.id, dataURLToBlob(img)); }
-      state.entries.push(e); added++;
-    }
-    await saveIndex(); render(); toast(`${added}개 기록을 불러왔어요`);
-  }catch(e){ toast('불러오기 실패 (파일·연결 확인)'); }
+  greennoteQuiz.start(blob, curLevel, curCount);
 }
 
 const dz=document.getElementById('dropzone'), fi=document.getElementById('fileInput');
 dz.onclick=()=>fi.click();
-fi.onchange=()=>{ if(fi.files.length){ handleFiles(fi.files); fi.value=''; } };
+fi.onchange=()=>{ if(fi.files[0]){ handleFile(fi.files[0]); fi.value=''; } };
 ['dragenter','dragover'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.add('is-over');}));
 ['dragleave','drop'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.remove('is-over');}));
-dz.addEventListener('drop',e=>{ if(e.dataTransfer.files.length) handleFiles(e.dataTransfer.files); });
+dz.addEventListener('drop',e=>{ if(e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); });
+document.getElementById('resetBtn').onclick=resetAll;
 
-document.getElementById('composeSave').onclick=saveCompose;
-document.getElementById('composeCancel').onclick=()=>{ pendingCurrent=null; pendingQueue=[]; setTagsLoading(false); const vp=document.getElementById('composePreviewVideo'); vp.pause(); document.getElementById('composeOverlay').classList.remove('show'); };
-document.getElementById('searchInput').oninput=e=>{ state.query=e.target.value.trim(); renderContent(); };
-document.getElementById('lightClose').onclick=closeLight;
-document.getElementById('lightbox').onclick=e=>{ if(e.target.id==='lightbox') closeLight(); };
-document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ closeLight(); document.getElementById('composeOverlay').classList.remove('show'); } });
-document.getElementById('exportBtn').onclick=exportData;
-document.getElementById('importBtn').onclick=()=>document.getElementById('importInput').click();
-document.getElementById('importInput').onchange=function(){ if(this.files[0]) importData(this.files[0]); this.value=''; };
+renderOpts();
 
-(async()=>{ await loadIndex(); render(); })();
-
-// ===== greennote 퀴즈 (칠판 사진 → AI 복습 문제) =====
+// ===== greennote 퀴즈 (판서 사진 → 같은 범위·판서엔 없는 문제) =====
 const greennoteQuiz = (function () {
   const TYPE = { choice: "객관식", short: "단답형", ox: "O / X" };
   let state = null;
 
-  async function open(entry, level, count) {
-    const overlay = ensureOverlay();
-    const body = overlay.querySelector(".gq-body");
-    body.innerHTML = '<div class="gq-loading"><span class="gq-spin"></span>읽고 출제하는 중…</div>';
-    overlay.classList.add("show");
+  async function start(blob, level, count) {
+    const area = document.getElementById("quizArea");
+    area.innerHTML = '<div class="gq-loading"><span class="gq-spin"></span>판서를 읽고, 같은 범위에서 판서엔 없는 문제를 만드는 중…</div>';
     try {
-      const data = await postJSON(`api/quiz/${entry.id}`, {
-        subject: entry.subject || "", level: level || "고2", count: count || 3,
-      });
+      const data = await postImage("api/quiz-image", blob, { level, count });
       if (!data.questions || !data.questions.length) throw new Error(data.error || "문제를 만들지 못했어요.");
       state = {
-        subject: entry.subject || "", level: level || "고2", count: count || 3,
+        subject: data.subject || "", scope: data.scope || "", level, count,
         summary: data.summary || "", keywords: data.keywords || [], asked: [],
       };
-      renderAll(body, data);
+      renderAll(area, data);
     } catch (e) {
-      body.innerHTML = '<div class="gq-err">문제 생성 실패 · ' + esc(e.message) + "</div>";
+      area.innerHTML = '<div class="gq-err">문제 생성 실패 · ' + esc(e.message) + "</div>";
+      if (/ANTHROPIC_API_KEY/.test(e.message)) banner("⚠️ 서버에 ANTHROPIC_API_KEY가 설정되지 않아 문제 생성이 비활성화돼 있어요.");
     }
   }
 
@@ -678,7 +273,7 @@ const greennoteQuiz = (function () {
     btn.disabled = true; btn.textContent = "새 문제 만드는 중…";
     try {
       const data = await postJSON("api/quiz-more", {
-        subject: state.subject, level: state.level, count: state.count,
+        subject: state.subject, scope: state.scope, level: state.level, count: state.count,
         summary: state.summary, keywords: state.keywords, exclude: state.asked,
       });
       if (!data.questions || !data.questions.length) throw new Error(data.error || "문제를 만들지 못했어요.");
@@ -698,6 +293,16 @@ const greennoteQuiz = (function () {
     }
   }
 
+  async function postImage(url, blob, params) {
+    const qs = new URLSearchParams(params || {}).toString();
+    const res = await fetch(url + (qs ? "?" + qs : ""), {
+      method: "POST", headers: { "content-type": "image/jpeg" }, body: blob,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error((data.error || ("요청 실패 (" + res.status + ")")) + (data.detail ? " — " + data.detail : ""));
+    return data;
+  }
+
   async function postJSON(url, payload) {
     const res = await fetch(url, {
       method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload),
@@ -707,26 +312,15 @@ const greennoteQuiz = (function () {
     return data;
   }
 
-  function ensureOverlay() {
-    let o = document.getElementById("gq-overlay");
-    if (o) return o;
-    o = document.createElement("div");
-    o.id = "gq-overlay";
-    o.className = "gq-overlay";
-    o.innerHTML = '<div class="gq-modal"><button class="gq-close" aria-label="닫기">×</button><div class="gq-body"></div></div>';
-    o.addEventListener("click", (e) => { if (e.target === o) close(); });
-    o.querySelector(".gq-close").addEventListener("click", close);
-    document.body.appendChild(o);
-    return o;
-  }
-  function close() { const o = document.getElementById("gq-overlay"); if (o) o.classList.remove("show"); }
-
   function renderAll(root, d) {
     const tags = (d.keywords || []).map(k => '<span class="gq-tag">#' + esc(k) + "</span>").join("");
+    const scope = (d.subject || d.scope)
+      ? '<span class="gq-scope">' + esc([d.subject, d.scope].filter(Boolean).join(" · ")) + "</span>" : "";
     root.innerHTML =
-      '<div class="gq-summary"><h3>📖 핵심 내용</h3><p>' + esc(d.summary || "") + "</p>"
+      '<div class="gq-summary"><h3>📖 판서 핵심 ' + scope + "</h3><p>" + esc(d.summary || "") + "</p>"
       + (tags ? '<div class="gq-tags">' + tags + "</div>" : "") + "</div>"
-      + '<div class="gq-qhead"><h3>복습 문제</h3><span class="gq-score" id="gq-score"></span></div>'
+      + '<div class="gq-qhead"><h3>확장 문제</h3><span class="gq-score" id="gq-score"></span></div>'
+      + '<p class="gq-qhint">아래는 <b>판서에는 없지만 같은 단원 범위</b>에서 함께 알아둘 내용이에요.</p>'
       + '<div class="gq-list" id="gq-list"></div>'
       + '<button class="gq-submit" id="gq-submit">정답 확인</button>'
       + '<button class="gq-more">🔄 새로운 문제 풀기</button>';
@@ -860,20 +454,8 @@ const greennoteQuiz = (function () {
     }
   }
 
-  function esc(s) { return ("" + s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
-
-  return { open, close };
+  return { start };
 })();
-
-// 카드의 「문제 풀기」 버튼 클릭 위임
-document.addEventListener("click", (e) => {
-  const b = e.target.closest(".gq-btn");
-  if (!b) return;
-  e.stopPropagation();
-  const id = b.dataset.id;
-  const entry = state.entries.find(x => x.id === id) || { id, subject: b.dataset.subject || "" };
-  greennoteQuiz.open(entry, "고2", 3);
-});
 
 // 업데이트 일시: 배포된 페이지의 Last-Modified(배포 시각)를 한국 시간 연월일시분으로 표시
 (async()=>{
