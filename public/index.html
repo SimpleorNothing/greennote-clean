@@ -59,7 +59,9 @@
 
   .lightbox{position:fixed;inset:0;background:rgba(12,14,18,.9);display:none;align-items:center;justify-content:center;z-index:100;padding:24px;cursor:zoom-out;}
   .lightbox.show{display:flex;}
-  .lightbox img{max-width:94vw;max-height:90vh;border-radius:10px;box-shadow:0 20px 60px rgba(0,0,0,.5);}
+  .lb-inner{display:flex;flex-direction:column;align-items:center;gap:14px;max-width:680px;width:100%;cursor:default;}
+  .lb-inner img{max-width:94vw;max-height:64vh;border-radius:10px;box-shadow:0 20px 60px rgba(0,0,0,.5);}
+  .lb-actions{display:flex;flex-direction:column;gap:10px;width:100%;max-width:340px;}
 
   @media(max-width:640px){ .gal-grid{grid-template-columns:repeat(2,1fr);} }
 
@@ -159,7 +161,12 @@
   <div id="quizArea"></div>
 </div>
 
-<div class="lightbox" id="lightbox"><img id="lightImg" alt="저장된 판서"></div>
+<div class="lightbox" id="lightbox">
+  <div class="lb-inner">
+    <img id="lightImg" alt="저장된 판서">
+    <div class="lb-actions" id="lbActions"></div>
+  </div>
+</div>
 <div class="update-stamp" id="updateStamp">업데이트: 2026-06-18</div>
 <div class="toast" id="toast"></div>
 
@@ -224,6 +231,7 @@ const SUBJECTS = {
   '사회':{bg:'#f0ecfb',fg:'#6b3fb0'}, '과학':{bg:'#e6f4f6',fg:'#0d6e7a'}, '기타':{bg:'#eef1f5',fg:'#5b6470'},
 };
 
+let galleryEntries = [];
 async function renderGallery(){
   const el = document.getElementById('gallery');
   if(!el) return;
@@ -232,6 +240,7 @@ async function renderGallery(){
   if(!Array.isArray(list)) list = [];
   list = list.filter(e => e && e.id && e.kind !== 'video');
   list.sort((a,b)=> (b.createdAt||0)-(a.createdAt||0));
+  galleryEntries = list;
 
   if(!list.length){
     el.innerHTML = '<div class="gal-empty">아직 저장된 판서가 없어요.<br>판서를 올려 문제를 풀고, 결과 화면에서 「판서 저장하기」를 눌러보세요.</div>';
@@ -295,12 +304,23 @@ async function deleteEntry(id){
 }
 
 function openLightbox(id){
-  const lb=document.getElementById('lightbox'), img=document.getElementById('lightImg');
+  const lb=document.getElementById('lightbox'), img=document.getElementById('lightImg'), acts=document.getElementById('lbActions');
+  const entry = galleryEntries.find(e=>e.id===id) || { id };
   img.src='api/image/'+id;
+  const hasSaved = entry.quiz && Array.isArray(entry.quiz.questions) && entry.quiz.questions.length;
+  acts.innerHTML =
+    (hasSaved ? '<button class="qz-rbtn primary" id="lbReplay">📋 이 판서 문제 다시 풀기</button>' : '')
+    + '<button class="qz-rbtn save" id="lbMore">✨ 유사한 추가 문제</button>'
+    + '<button class="qz-rbtn ghost" id="lbClose">닫기</button>';
+  const replay=document.getElementById('lbReplay');
+  if(replay) replay.onclick=()=>{ closeLightbox(); greennoteQuiz.openSaved(entry); };
+  document.getElementById('lbMore').onclick=()=>{ closeLightbox(); greennoteQuiz.openSimilar(entry); };
+  document.getElementById('lbClose').onclick=closeLightbox;
   lb.classList.add('show');
 }
 function closeLightbox(){ document.getElementById('lightbox').classList.remove('show'); }
-document.getElementById('lightbox').addEventListener('click', closeLightbox);
+// 배경(이미지·버튼 바깥)을 누르면 닫기
+document.getElementById('lightbox').addEventListener('click', e=>{ if(e.target.id==='lightbox') closeLightbox(); });
 document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeLightbox(); });
 
 // ── 사진 업로드 → 곧바로 퀴즈 ──
@@ -505,6 +525,12 @@ const greennoteQuiz = (function () {
         title: s.meta.scope || "", memo: s.meta.summary || "",
         tags: (s.meta.keywords || []).map(k => ("" + k).replace(/\s+/g, "")).filter(Boolean).slice(0, 6),
         createdAt: Date.now(),
+        // 출제했던 문제를 이미지와 함께 저장(나중에 다시 풀기 / 유사 문제 출제에 사용)
+        quiz: {
+          subject: s.meta.subject || "", scope: s.meta.scope || "",
+          summary: s.meta.summary || "", keywords: s.meta.keywords || [],
+          level: s.meta.level || "고2", questions: s.questions,
+        },
       });
       const pr = await fetch("api/index", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(list) });
       if (!pr.ok) throw new Error("index " + pr.status);
@@ -592,7 +618,61 @@ const greennoteQuiz = (function () {
     return data;
   }
 
-  return { start, clearFoot };
+  // 갤러리 항목(저장된 판서)에서 메타데이터 구성. 저장본이므로 재저장하지 않음(blob 없음).
+  function entryMeta(entry) {
+    const q = entry.quiz || {};
+    return {
+      subject: q.subject || entry.subject || "",
+      scope: q.scope || entry.title || "",
+      summary: q.summary || entry.memo || "",
+      keywords: q.keywords || entry.tags || [],
+      level: q.level || "고2",
+      asked: [], blob: null, saved: true,
+    };
+  }
+
+  function runQuestions(questions, meta) {
+    const qs = normQuestions(questions);
+    if (!qs.length) { toast("저장된 문제가 없어요"); return; }
+    setLandingVisible(false);
+    meta.asked = qs.map(q => q.question);
+    s = { questions: qs, idx: 0, picks: new Array(qs.length).fill(null), correct: 0, wrong: 0, graded: false, meta };
+    clearFoot();
+    renderQuestion();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  // 저장해 둔 '기존 문제' 다시 풀기
+  function openSaved(entry) {
+    runQuestions((entry.quiz && entry.quiz.questions) || [], entryMeta(entry));
+  }
+
+  // 같은 범위의 '유사한 추가 문제' 생성해 풀기
+  async function openSimilar(entry) {
+    const meta = entryMeta(entry);
+    const area = document.getElementById("quizArea");
+    setLandingVisible(false);
+    clearFoot();
+    area.innerHTML = '<div class="qz-loading"><span class="qz-spin"></span>같은 범위에서 유사한 추가 문제를 만드는 중…</div>';
+    try {
+      const exclude = (entry.quiz && Array.isArray(entry.quiz.questions)) ? entry.quiz.questions.map(q => q.question) : [];
+      const data = await postJSON("api/quiz-more", {
+        subject: meta.subject, scope: meta.scope, level: meta.level, count: Q_COUNT,
+        summary: meta.summary, keywords: meta.keywords, exclude,
+      });
+      const qs = normQuestions(data.questions);
+      if (!qs.length) throw new Error(data.error || "문제를 만들지 못했어요.");
+      meta.asked = exclude.concat(qs.map(q => q.question));
+      s = { questions: qs, idx: 0, picks: new Array(qs.length).fill(null), correct: 0, wrong: 0, graded: false, meta };
+      renderQuestion();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch (e) {
+      area.innerHTML = '<div class="qz-err">문제 생성 실패 · ' + esc(e.message) + "</div>"
+        + '<div style="margin-top:16px"><button class="qz-rbtn ghost" style="max-width:240px" onclick="quizReset()">홈으로</button></div>';
+    }
+  }
+
+  return { start, clearFoot, openSaved, openSimilar };
 })();
 
 // 홈: 저장된 판서 갤러리 초기 렌더
