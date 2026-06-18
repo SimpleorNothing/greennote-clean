@@ -110,6 +110,9 @@
   .qz-rbtn.primary:disabled{opacity:.6;cursor:default}
   .qz-rbtn.ghost{border:1.5px solid var(--border);background:var(--bg);color:var(--muted)}
   .qz-rbtn.ghost:hover{border-color:var(--brand);color:var(--brand)}
+  .qz-rbtn.save{border:1.5px solid var(--brand);background:var(--bg);color:var(--brand)}
+  .qz-rbtn.save:hover:not(:disabled){background:rgba(18,87,214,.06)}
+  .qz-rbtn.save:disabled{border-color:var(--ok);color:var(--ok);background:var(--ok-bg);cursor:default}
 
   @media(max-width:640px){ body{padding:32px 16px 96px;} h1{font-size:24px;} .qz-foot{padding:14px 16px 18px} }
 </style>
@@ -399,7 +402,6 @@ const greennoteQuiz = (function () {
 
   function renderResult() {
     clearFoot();
-    saveBoardImage(); // 풀이 완료 시점에 판서 이미지 저장
     const area = document.getElementById("quizArea");
     const total = s.questions.length;
     const correct = s.correct;
@@ -428,10 +430,21 @@ const greennoteQuiz = (function () {
       + "</div>"
       + '<div class="qz-review">' + review + "</div>"
       + '<div class="qz-result-actions">'
+        + '<button class="qz-rbtn save" id="qzSave">' + (s.meta.saved ? "저장됨 ✓" : "💾 판서 저장하기") + "</button>"
         + '<button class="qz-rbtn primary" id="qzMore">🔄 같은 범위로 새 ' + total + "문제</button>"
         + '<button class="qz-rbtn ghost" onclick="quizReset()">다른 판서 올리기</button>'
       + "</div>";
     document.getElementById("qzMore").addEventListener("click", loadMore);
+
+    const saveBtn = document.getElementById("qzSave");
+    if (s.meta.saved) saveBtn.disabled = true;
+    saveBtn.addEventListener("click", async () => {
+      if (s.meta.saved) return;
+      saveBtn.disabled = true; saveBtn.textContent = "저장 중…";
+      await saveBoardImage();
+      if (s.meta.saved) { saveBtn.textContent = "저장됨 ✓"; }
+      else { saveBtn.disabled = false; saveBtn.textContent = "💾 판서 저장하기"; }
+    });
   }
 
   async function loadMore() {
