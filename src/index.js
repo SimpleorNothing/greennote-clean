@@ -234,7 +234,7 @@ async function handleQuiz(request, env, id) {
       },
       body: JSON.stringify({
         model: QUIZ_MODEL,
-        max_tokens: 2000,
+        max_tokens: 4000,
         messages: [{ role: "user", content: [
           { type: "image", source: { type: "base64", media_type: mediaType, data: b64 } },
           { type: "text", text: prompt },
@@ -265,16 +265,16 @@ async function handleQuiz(request, env, id) {
 function buildBeyondQuizPrompt(level, count) {
   return [
     `너는 한국 고등학생의 공부를 돕는 출제 선생님이다. 첨부한 사진은 학생이 칠판(판서)에 정리한 필기다. 손글씨를 최대한 정확히 읽어라.`,
-    `1) 어떤 과목·단원(범위)인지 판단하고, 판서의 핵심 내용을 2~3문장으로 요약하라. 핵심 키워드 3~6개도 뽑아라.`,
-    `2) 그 '같은 단원(범위)' 안에서, 단 '판서에는 적혀 있지 않은' 내용으로만 ${level} 수준의 문제 ${count}개를 만들어라.`,
+    `먼저 어떤 과목·단원(범위)인지 판단하고, 판서의 핵심 내용을 2~3문장으로 요약하라. 핵심 키워드 3~6개도 뽑아라.`,
+    `그 '같은 단원(범위)' 안에서, 단 '판서에는 적혀 있지 않은' 내용으로만 ${level} 수준의 4지선다 문제 ${count}개를 만들어라.`,
+    `- 모든 문제는 보기 4개짜리 객관식이며 정답은 정확히 하나다. 보기는 그럴듯한 오답을 섞어라.`,
     `- 판서에 이미 나온 사실·용어·개념·인물·연도를 그대로 묻는 문제는 절대 만들지 마라. 판서를 본 학생이라도 판서만으로는 풀 수 없어야 한다.`,
     `- 같은 단원에 속하고 한국 고등학교 교과에서 표준적으로 다루는 '정확한 사실'만 출제하라. 추측·불확실한 내용은 금지한다.`,
-    `- 각 문제의 해설에는 "판서에는 없지만 같은 단원에서 함께 알아둘 내용"이라는 점이 드러나게 써라.`,
-    `유형은 객관식(choice, 4지선다)·단답형(short)·OX(ox)를 골고루 섞어라. 각 문제에 정답과 한 문장 해설을 붙여라.`,
+    `- 각 문제에는 정답을 직접 말하지 않는 한 줄 힌트(hint)와, "판서에는 없지만 같은 단원에서 함께 알아둘 내용"이라는 점이 드러나는 한 문장 해설(explanation)을 붙여라.`,
     ``,
     `반드시 아래 JSON 하나만 출력하라. 코드펜스·설명 금지.`,
-    `{"subject":"과목","scope":"단원/범위","summary":"판서 요약","keywords":["키워드"],"questions":[{"type":"choice|short|ox","question":"문제","choices":["①..","②..","③..","④.."],"answer":"정답(객관식은 번호기호, OX는 O 또는 X)","explanation":"한 문장 해설"}]}`,
-    `choices는 choice일 때만 채우고 short·ox에서는 빈 배열 []로 둬라.`,
+    `{"subject":"과목","scope":"단원/범위","summary":"판서 요약","keywords":["키워드"],"questions":[{"question":"문제","choices":["보기1","보기2","보기3","보기4"],"answer":0,"hint":"정답을 직접 말하지 않는 힌트","explanation":"한 문장 해설"}]}`,
+    `answer는 choices 배열에서 정답의 인덱스(0~3 정수)다. choices는 항상 4개이며 보기 앞에 번호·기호를 붙이지 마라.`,
   ].join("\n");
 }
 
@@ -290,7 +290,7 @@ async function handleQuizImage(request, env) {
 
   const url = new URL(request.url);
   const level = url.searchParams.get("level") || "고2";
-  const count = Math.min(Math.max(parseInt(url.searchParams.get("count"), 10) || 4, 1), 10);
+  const count = Math.min(Math.max(parseInt(url.searchParams.get("count"), 10) || 10, 1), 12);
 
   const buf = await request.arrayBuffer();
   if (!buf || buf.byteLength === 0) {
@@ -315,7 +315,7 @@ async function handleQuizImage(request, env) {
       },
       body: JSON.stringify({
         model: QUIZ_MODEL,
-        max_tokens: 2000,
+        max_tokens: 4000,
         messages: [{ role: "user", content: [
           { type: "image", source: { type: "base64", media_type: mediaType, data: b64 } },
           { type: "text", text: prompt },
@@ -350,7 +350,8 @@ function buildQuizMorePrompt(subject, level, count, summary, keywords, exclude, 
     `학생이 판서에 정리한 핵심 내용: "${summary}"`,
     `핵심 키워드: ${keywords.join(", ")}`,
     ``,
-    `위 '같은 단원(범위)' 안에서 ${level} 수준의 새로운 문제 ${count}개를 만들어라.`,
+    `위 '같은 단원(범위)' 안에서 ${level} 수준의 새로운 4지선다 문제 ${count}개를 만들어라.`,
+    `- 모든 문제는 보기 4개짜리 객관식이며 정답은 정확히 하나다. 그럴듯한 오답을 섞어라.`,
     `- 위 '판서 핵심 내용'에 이미 나온 사실·용어·개념을 그대로 묻는 문제는 만들지 마라. 판서에는 없지만 같은 단원에서 함께 알아둘 내용으로만 출제하라.`,
     `- 같은 단원에 속하고 고등학교 교과에서 표준적으로 다루는 정확한 사실만 출제하라. 추측·불확실한 내용은 금지한다.`,
     `- 아래 '이미 출제된 문제'와 중복되거나 거의 같은 문제는 절대 내지 마라.`,
@@ -358,10 +359,10 @@ function buildQuizMorePrompt(subject, level, count, summary, keywords, exclude, 
     `[이미 출제된 문제]`,
     exclude.length ? exclude.map((q, i) => `${i + 1}. ${q}`).join("\n") : "(없음)",
     ``,
-    `유형은 객관식(choice,4지선다)·단답형(short)·OX(ox)를 골고루 섞어라. 각 문제에 정답과 한 문장 해설을 붙여라.`,
+    `각 문제에는 정답을 직접 말하지 않는 한 줄 힌트(hint)와 한 문장 해설(explanation)을 붙여라.`,
     `반드시 아래 JSON 하나만 출력하라. 코드펜스·설명 금지.`,
-    `{"questions":[{"type":"choice|short|ox","question":"문제","choices":["①..","②..","③..","④.."],"answer":"정답(객관식은 번호기호, OX는 O 또는 X)","explanation":"한 문장 해설"}]}`,
-    `choices는 choice일 때만 채우고 short·ox에서는 빈 배열 []로 둬라.`,
+    `{"questions":[{"question":"문제","choices":["보기1","보기2","보기3","보기4"],"answer":0,"hint":"힌트","explanation":"한 문장 해설"}]}`,
+    `answer는 choices 배열에서 정답의 인덱스(0~3 정수)이며 choices는 항상 4개다. 보기 앞에 번호·기호를 붙이지 마라.`,
   ].join("\n");
 }
 
@@ -379,7 +380,7 @@ async function handleQuizMore(request, env) {
   try { opt = await request.json(); } catch (_) {}
   const subject  = opt.subject || "공부 내용";
   const level    = opt.level   || "고2";
-  const count    = Math.min(Math.max(parseInt(opt.count, 10) || 3, 1), 10);
+  const count    = Math.min(Math.max(parseInt(opt.count, 10) || 10, 1), 12);
   const summary  = ("" + (opt.summary || "")).slice(0, 1500);
   const keywords = Array.isArray(opt.keywords) ? opt.keywords.slice(0, 12) : [];
   const exclude  = Array.isArray(opt.exclude) ? opt.exclude.slice(0, 40) : [];
@@ -399,7 +400,7 @@ async function handleQuizMore(request, env) {
       },
       body: JSON.stringify({
         model: QUIZ_MODEL,
-        max_tokens: 2000,
+        max_tokens: 4000,
         messages: [{ role: "user", content: prompt }],
       }),
     });
