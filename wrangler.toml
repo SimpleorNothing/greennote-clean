@@ -14,11 +14,12 @@ binding = "ASSETS"
 binding = "greennote"
 bucket_name = "greennote"
 
-# ── Claude Vision 태그 자동 생성 ──────────────────────────────────────────
-# ANTHROPIC_API_KEY 는 wrangler.toml에 직접 쓰지 말고 Cloudflare Secret으로 관리한다.
+# ── Gemini Vision 문제 생성 ───────────────────────────────────────────────
+# GEMINI_API_KEY 는 wrangler.toml에 직접 쓰지 말고 Cloudflare Secret으로 관리한다.
+# 키는 Google AI Studio(https://aistudio.google.com/apikey)에서 발급한다.
 # 설정 방법:
-#   wrangler secret put ANTHROPIC_API_KEY
+#   wrangler secret put GEMINI_API_KEY
 #   → 프롬프트에 API 키 붙여넣기 (Enter)
 # 또는 Cloudflare 대시보드 → Workers & Pages → greennote
 #   → Settings → Variables and Secrets → Add secret
-# 키가 없으면 /api/tags 는 빈 태그를 반환하고 나머지 기능은 정상 동작한다.
+# 키가 없으면 /api/quiz-image 는 503, /api/tags 는 빈 태그를 반환한다.

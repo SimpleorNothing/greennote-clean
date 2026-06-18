@@ -237,7 +237,7 @@ const greennoteQuiz = (function () {
     } catch (e) {
       area.innerHTML = '<div class="qz-err">문제 생성 실패 · ' + esc(e.message) + "</div>"
         + '<div style="margin-top:16px"><button class="qz-rbtn ghost" style="max-width:240px" onclick="quizReset()">다른 판서 올리기</button></div>';
-      if (/ANTHROPIC_API_KEY/.test(e.message)) banner("⚠️ 서버에 ANTHROPIC_API_KEY가 설정되지 않아 문제 생성이 비활성화돼 있어요.");
+      if (/GEMINI_API_KEY/.test(e.message)) banner("⚠️ 서버에 GEMINI_API_KEY가 설정되지 않아 문제 생성이 비활성화돼 있어요.");
     }
   }
 

@@ -3,14 +3,14 @@
 판서(칠판) 사진을 올리면 **같은 단원 범위지만 판서에는 없는 내용**으로 복습 문제를 곧바로 만들어 주는 웹 도구.
 판서를 그대로 외웠는지가 아니라, 그 단원에서 함께 알아둘 내용까지 점검하는 데 초점을 둔다.
 
-사진은 서버에 저장하지 않고(요청 본문으로만 전달) **Anthropic Claude Vision**이 읽어 문제를 생성한다.
+사진은 서버에 저장하지 않고(요청 본문으로만 전달) **Google Gemini Vision**이 읽어 문제를 생성한다.
 
 🔗 배포 후 주소에서 사용
 
 ## 동작
 
 1. 판서 사진을 올린다(끌어다 놓거나 눌러서).
-2. Claude Vision이 판서를 읽어 **과목·단원·핵심 요약**을 파악한다.
+2. Gemini Vision이 판서를 읽어 **과목·단원·핵심 요약**을 파악한다.
 3. 같은 단원 범위에서 **판서에는 없는** 4지선다 문제 **10개**를 낸다.
 4. 진행바·정답/오답 카운터를 보며 **한 문제씩** 푼다. 각 문제에는 **힌트 보기**가 있고, 보기를 고르면 즉시 정답·해설이 표시된다.
 5. 마지막에 점수를 보여주고, **같은 범위로 새 10문제**로 같은 단원의 다른 문제를 더 받을 수 있다.
@@ -32,7 +32,7 @@ greennote/
   - `POST /api/quiz-more`        — 1차 요약·키워드를 바탕으로 같은 범위의 새 문제 추가 생성(중복 회피)
   - `GET/PUT/DELETE /api/image/{id}`, `GET/PUT /api/index`, `POST /api/tags` — (구 노트 기능용 엔드포인트, 현재 화면에서는 미사용)
 - `/api` 외의 경로는 `public/` 의 정적 파일(env.ASSETS)로 서빙된다.
-- Claude 호출은 서버 측 **Worker**가 처리한다 → 브라우저에 API 키가 노출되지 않는다.
+- Gemini 호출은 서버 측 **Worker**가 처리한다 → 브라우저에 API 키가 노출되지 않는다.
 - 사진: 업로드 시 1200px·JPEG로 압축해 전송하며, 서버에 저장하지 않는다(문제 생성에만 사용).
 
 ## 배포 (Cloudflare Workers + R2)
@@ -52,27 +52,29 @@ greennote/
 - Worker에 **Custom domains** 로 원하는 주소를 연결한다 (예: `greennote.simpleornothing.com`).
 - 같은 Worker에서 화면과 `/api`가 함께 서비스되므로 CORS 설정이 필요 없다.
 
-## 문제 생성 (Claude Vision)
+## 문제 생성 (Gemini Vision)
 
-판서 사진을 올리면 **Anthropic Claude Vision**이 판서를 읽어 과목·단원을 판단하고,
+판서 사진을 올리면 **Google Gemini Vision**(`gemini-2.5-flash`)이 판서를 읽어 과목·단원을 판단하고,
 같은 범위에서 **판서에는 없는** 4지선다 문제 10개(각 문제에 힌트·해설 포함)를 만든다.
+응답은 `responseMimeType: application/json` 으로 받아 JSON 파싱이 안정적이다.
 API 키가 없으면 화면에 안내 배너가 뜨고 문제 생성만 비활성화된다.
 
-### ANTHROPIC_API_KEY 설정
+### GEMINI_API_KEY 설정
 
 API 키를 코드나 `wrangler.toml`에 직접 넣지 말고 **Cloudflare Secret**으로 관리한다.
+키는 [Google AI Studio](https://aistudio.google.com/apikey) 에서 발급한다.
 
 **방법 A — CLI (권장)**
 ```bash
-wrangler secret put ANTHROPIC_API_KEY
+wrangler secret put GEMINI_API_KEY
 # 프롬프트가 뜨면 API 키 붙여넣기 → Enter
 ```
 
 **방법 B — 대시보드**
 Cloudflare 대시보드 → Workers & Pages → `greennote`
 → **Settings** → **Variables and Secrets** → **Add secret**
-- 이름: `ANTHROPIC_API_KEY`
-- 값: Anthropic Console에서 발급한 API 키
+- 이름: `GEMINI_API_KEY`
+- 값: Google AI Studio에서 발급한 API 키
 
 Secret을 설정하면 재배포 없이 바로 적용된다.
 API 키가 없으면 `/api/quiz-image` 는 503을 반환하고 화면에 안내가 표시된다.
