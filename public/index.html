@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>GreenNote · 판서 → 확장 문제</title>
-<meta name="description" content="판서 사진을 올리면 같은 단원 범위지만 판서에는 없는 내용으로 10문제를 내주는 도구">
+<meta name="description" content="판서 사진을 올리면 같은 단원 범위지만 판서에는 없는 내용으로 5문제를 내주는 도구">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
 <style>
   :root{
@@ -50,8 +50,8 @@
   .qz-seg{flex:1;height:6px;border-radius:999px;background:var(--border);transition:.2s}
   .qz-seg.done{background:var(--brand)}
   .qz-frac{flex-shrink:0;font-size:13px;font-weight:600;color:var(--muted)}
-  .qz-pill{flex-shrink:0;display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:700;padding:4px 11px;border-radius:999px}
-  .qz-pill b{font-weight:800}
+  .qz-pill{flex-shrink:0;display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:700;padding:4px 11px;border-radius:999px;background:var(--surface);color:var(--muted)}
+  .qz-pill b{font-weight:800;color:var(--text)}
   .qz-pill.no{background:var(--no-bg);color:var(--no)}
   .qz-pill.ok{background:var(--ok-bg);color:var(--ok)}
 
@@ -64,7 +64,8 @@
   .qz-opt:hover:not(:disabled){background:#eef1f6}
   .qz-opt:disabled{cursor:default}
   .qz-opt .lt{flex-shrink:0;font-weight:700;color:var(--muted)}
-  .qz-opt.sel{border-color:var(--brand)}
+  .qz-opt.sel{border-color:var(--brand);background:rgba(18,87,214,.08)}
+  .qz-opt.sel .lt{color:var(--brand)}
   .qz-opt.ok{background:var(--ok-bg);border-color:var(--ok)}
   .qz-opt.ok .lt{color:var(--ok)}
   .qz-opt.no{background:var(--no-bg);border-color:var(--no)}
@@ -79,10 +80,6 @@
   .qz-hint.show{display:block}
   .qz-hint .ico{margin-right:6px}
 
-  .qz-exp{margin-top:14px;background:var(--ok-bg);border-radius:14px;padding:14px 16px;font-size:13.5px;line-height:1.65;color:#15663f;display:none}
-  .qz-exp.show{display:block}
-  .qz-exp.no{background:var(--no-bg);color:#8a2a20}
-
   .qz-foot{position:fixed;left:0;right:0;bottom:0;background:linear-gradient(to top,var(--bg) 70%,transparent);padding:16px 24px 22px;display:flex;justify-content:flex-end;z-index:70}
   .qz-foot-inner{width:100%;max-width:680px;margin:0 auto;display:flex;justify-content:flex-end}
   .qz-next{border:none;background:var(--brand);color:#fff;font:inherit;font-size:15px;font-weight:700;padding:13px 30px;border-radius:999px;cursor:pointer;transition:.12s}
@@ -93,7 +90,19 @@
   .qz-result{text-align:center;padding:30px 10px 10px}
   .qz-result .big{font-size:46px;font-weight:800;letter-spacing:-1px;margin:0 0 6px}
   .qz-result .big .tot{font-size:24px;color:var(--muted);font-weight:700}
-  .qz-result .msg{font-size:15px;color:var(--muted);margin:0 0 26px;line-height:1.6}
+  .qz-result .msg{font-size:15px;color:var(--muted);margin:0 0 20px;line-height:1.6}
+  /* 결과 리뷰(문항별 정답·해설) */
+  .qz-review{display:flex;flex-direction:column;gap:10px;margin:0 0 22px}
+  .qz-rv{border:1.5px solid var(--border);border-radius:14px;padding:14px 16px;background:var(--surface)}
+  .qz-rv.ok{border-color:var(--ok);background:var(--ok-bg)}
+  .qz-rv.no{border-color:var(--no);background:var(--no-bg)}
+  .qz-rv-mk{font-weight:800;margin-right:6px}
+  .qz-rv.ok .qz-rv-mk{color:var(--ok)}
+  .qz-rv.no .qz-rv-mk{color:var(--no)}
+  .qz-rv-q{font-size:14.5px;font-weight:600;line-height:1.55;margin-bottom:8px}
+  .qz-rv-a{font-size:13.5px;line-height:1.5;color:var(--text)}
+  .qz-rv-c{font-size:13.5px;line-height:1.5;font-weight:700;color:var(--ok);margin-top:3px}
+  .qz-rv-e{font-size:13px;line-height:1.6;color:var(--muted);margin-top:7px}
   .qz-result-actions{display:flex;flex-direction:column;gap:10px;max-width:320px;margin:0 auto}
   .qz-rbtn{font:inherit;font-size:15px;font-weight:700;padding:13px;border-radius:12px;cursor:pointer;transition:.12s}
   .qz-rbtn.primary{border:none;background:var(--brand);color:#fff}
@@ -109,14 +118,14 @@
 <div class="wrap">
   <header id="landing">
     <h1>📋 판서 → 확장 문제</h1>
-    <p class="sub">판서(칠판) 사진을 올리면, <b>같은 단원 범위지만 판서에는 없는 내용</b>으로 10문제를 바로 내드려요.</p>
+    <p class="sub">판서(칠판) 사진을 올리면, <b>같은 단원 범위지만 판서에는 없는 내용</b>으로 5문제를 바로 내드려요.</p>
     <div class="banner" id="banner"></div>
   </header>
 
   <div class="dropzone" id="dropzone">
     <span class="ico">📷</span>
     <div class="big">판서 사진을 여기로 끌어다 놓거나 눌러서 올리기</div>
-    <div>JPG · PNG · HEIC · 올리면 곧바로 10문제가 나와요</div>
+    <div>JPG · PNG · HEIC · 올리면 곧바로 5문제가 나와요</div>
   </div>
   <input type="file" id="fileInput" accept="image/*" hidden>
 
@@ -128,7 +137,7 @@
 
 <script>
 const Q_LEVEL = '고2';
-const Q_COUNT = 10;
+const Q_COUNT = 5;
 
 function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),1900); }
 function banner(msg){ const b=document.getElementById('banner'); if(msg){ b.textContent=msg; b.classList.add('show'); } else b.classList.remove('show'); }
@@ -211,7 +220,7 @@ fi.onchange=()=>{ if(fi.files[0]){ handleFile(fi.files[0]); fi.value=''; } };
 ['dragleave','drop'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.remove('is-over');}));
 dz.addEventListener('drop',e=>{ if(e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); });
 
-// ===== greennote 퀴즈 (판서 → 같은 범위·판서엔 없는 4지선다 10문제, 한 문제씩) =====
+// ===== greennote 퀴즈 (판서 → 같은 범위·판서엔 없는 4지선다 5문제, 한 문제씩) =====
 const greennoteQuiz = (function () {
   const LETTERS = ["A", "B", "C", "D", "E", "F"];
   let s = null;
@@ -226,7 +235,7 @@ const greennoteQuiz = (function () {
       if (!qs.length) throw new Error(data.error || "문제를 만들지 못했어요.");
       s = {
         questions: qs, idx: 0, picks: new Array(qs.length).fill(null),
-        correct: 0, wrong: 0,
+        correct: 0, wrong: 0, graded: false,
         meta: {
           subject: data.subject || "", scope: data.scope || "",
           summary: data.summary || "", keywords: data.keywords || [],
@@ -283,42 +292,34 @@ const greennoteQuiz = (function () {
     const area = document.getElementById("quizArea");
     const total = s.questions.length;
     const q = s.questions[s.idx];
-    const answered = s.picks[s.idx] !== null;
-    const pick = s.picks[s.idx];
+    const pick = s.picks[s.idx];           // 내가 고른 보기 (없으면 null)
+    const picked = pick !== null;
+    const answeredCount = s.picks.filter(p => p !== null).length;
 
     const segs = s.questions.map((_, i) => '<span class="qz-seg' + (i <= s.idx ? " done" : "") + '"></span>').join("");
+    // 채점 전에는 정답을 보여주지 않고, 고른 보기만 강조한다.
     const opts = q.choices.map((c, i) => {
-      let cls = "qz-opt";
-      if (answered) {
-        if (i === q.answer) cls += " ok";
-        else if (i === pick) cls += " no";
-      }
-      return '<button type="button" class="' + cls + '" data-i="' + i + '"' + (answered ? " disabled" : "") + '>'
+      const cls = "qz-opt" + (i === pick ? " sel" : "");
+      return '<button type="button" class="' + cls + '" data-i="' + i + '">'
         + '<span class="lt">' + LETTERS[i] + ".</span><span>" + esc(c) + "</span></button>";
     }).join("");
-
-    const expCls = answered ? (pick === q.answer ? "qz-exp show" : "qz-exp show no") : "qz-exp";
 
     area.innerHTML =
       '<div class="qz-top">'
         + '<button class="qz-back" title="처음으로" onclick="quizReset()">‹</button>'
         + '<div class="qz-bar">' + segs + "</div>"
         + '<span class="qz-frac">' + (s.idx + 1) + " / " + total + "</span>"
-        + '<span class="qz-pill no">✕ <b id="qzWrong">' + s.wrong + "</b></span>"
-        + '<span class="qz-pill ok">✓ <b id="qzRight">' + s.correct + "</b></span>"
+        + '<span class="qz-pill">답함 <b>' + answeredCount + "</b>/" + total + "</span>"
       + "</div>"
       + '<div class="qz-qrow"><span class="qz-qnum">' + (s.idx + 1) + '.</span><p class="qz-qtext">' + esc(q.question) + "</p></div>"
       + '<div class="qz-opts" id="qzOpts">' + opts + "</div>"
       + (q.hint ? '<div class="qz-hintwrap"><button class="qz-hintbtn" id="qzHintBtn">힌트 보기 <span class="arw">▾</span></button>'
-          + '<div class="qz-hint" id="qzHint"><span class="ico">💡</span>' + esc(q.hint) + "</div></div>" : "")
-      + (q.explanation ? '<div class="' + expCls + '" id="qzExp"><b>해설 · </b>' + esc(q.explanation) + "</div>" : "");
+          + '<div class="qz-hint" id="qzHint"><span class="ico">💡</span>' + esc(q.hint) + "</div></div>" : "");
 
-    // 옵션 클릭
-    if (!answered) {
-      area.querySelectorAll(".qz-opt").forEach(btn => {
-        btn.addEventListener("click", () => choose(parseInt(btn.dataset.i, 10)));
-      });
-    }
+    // 옵션 클릭 (채점 전이므로 언제든 다시 고를 수 있음)
+    area.querySelectorAll(".qz-opt").forEach(btn => {
+      btn.addEventListener("click", () => choose(parseInt(btn.dataset.i, 10)));
+    });
     // 힌트 토글
     const hb = document.getElementById("qzHintBtn");
     if (hb) hb.addEventListener("click", () => {
@@ -326,18 +327,22 @@ const greennoteQuiz = (function () {
       document.getElementById("qzHint").classList.toggle("show");
     });
 
-    renderFoot(answered, total);
+    renderFoot(picked, total);
   }
 
   function choose(i) {
-    if (s.picks[s.idx] !== null) return;
-    s.picks[s.idx] = i;
-    const q = s.questions[s.idx];
-    if (i === q.answer) s.correct++; else s.wrong++;
+    s.picks[s.idx] = i; // 채점은 마지막에 한 번에 (여기서는 선택만)
     renderQuestion();
   }
 
-  function renderFoot(answered, total) {
+  // 5문제를 모두 푼 뒤 한 번에 채점
+  function grade() {
+    s.correct = 0; s.wrong = 0;
+    s.questions.forEach((q, i) => { if (s.picks[i] === q.answer) s.correct++; else s.wrong++; });
+    s.graded = true;
+  }
+
+  function renderFoot(picked, total) {
     let foot = document.getElementById("qzFoot");
     if (!foot) {
       foot = document.createElement("div");
@@ -348,11 +353,11 @@ const greennoteQuiz = (function () {
     }
     const next = document.getElementById("qzNext");
     const last = s.idx >= total - 1;
-    next.textContent = last ? "결과 보기" : "다음";
-    next.disabled = !answered;
+    next.textContent = last ? "채점하기" : "다음";
+    next.disabled = !picked;
     next.onclick = () => {
       if (s.picks[s.idx] === null) return;
-      if (last) { renderResult(); }
+      if (last) { grade(); renderResult(); }
       else { s.idx++; renderQuestion(); window.scrollTo({ top: 0, behavior: "smooth" }); }
     };
   }
@@ -365,7 +370,7 @@ const greennoteQuiz = (function () {
   function todayStr() { const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
 
   // 풀이를 마친 판서 이미지를 R2(api/image)에 저장하고 index.json에 메타데이터를 추가한다.
-  // ※ 한 번만 저장(새 10문제로 이어 풀어도 중복 저장하지 않음)
+  // ※ 한 번만 저장(새 문제로 이어 풀어도 중복 저장하지 않음)
   async function saveBoardImage() {
     if (!s || s.meta.saved || !s.meta.blob) return;
     s.meta.saved = true; // 낙관적 잠금(중복 방지)
@@ -402,14 +407,30 @@ const greennoteQuiz = (function () {
     const msg = pct >= 80 ? "훌륭해요! 같은 단원 확장 내용까지 잘 잡고 있어요."
       : pct >= 50 ? "좋아요. 틀린 문제의 해설을 한 번 더 보면 좋아요."
       : "판서 범위 주변 내용을 더 채워볼까요? 해설을 천천히 읽어보세요.";
+
+    // 문항별 채점 결과 + 정답·해설 리뷰
+    const review = s.questions.map((q, i) => {
+      const pick = s.picks[i];
+      const ok = pick === q.answer;
+      const mine = pick != null ? LETTERS[pick] + ". " + esc(q.choices[pick]) : "(무응답)";
+      return '<div class="qz-rv ' + (ok ? "ok" : "no") + '">'
+        + '<div class="qz-rv-q"><span class="qz-rv-mk">' + (ok ? "✓" : "✕") + "</span><b>" + (i + 1) + ".</b> " + esc(q.question) + "</div>"
+        + '<div class="qz-rv-a">내 답 · ' + mine + "</div>"
+        + (ok ? "" : '<div class="qz-rv-c">정답 · ' + LETTERS[q.answer] + ". " + esc(q.choices[q.answer]) + "</div>")
+        + (q.explanation ? '<div class="qz-rv-e">' + esc(q.explanation) + "</div>" : "")
+        + "</div>";
+    }).join("");
+
     area.innerHTML =
       '<div class="qz-result">'
       + '<p class="big">' + correct + '<span class="tot"> / ' + total + "</span></p>"
       + '<p class="msg">' + (s.meta.subject || s.meta.scope ? esc([s.meta.subject, s.meta.scope].filter(Boolean).join(" · ")) + "<br>" : "") + msg + "</p>"
+      + "</div>"
+      + '<div class="qz-review">' + review + "</div>"
       + '<div class="qz-result-actions">'
-        + '<button class="qz-rbtn primary" id="qzMore">🔄 같은 범위로 새 10문제</button>'
+        + '<button class="qz-rbtn primary" id="qzMore">🔄 같은 범위로 새 ' + total + "문제</button>"
         + '<button class="qz-rbtn ghost" onclick="quizReset()">다른 판서 올리기</button>'
-      + "</div></div>";
+      + "</div>";
     document.getElementById("qzMore").addEventListener("click", loadMore);
   }
 
@@ -425,12 +446,12 @@ const greennoteQuiz = (function () {
       const qs = normQuestions(data.questions);
       if (!qs.length) throw new Error(data.error || "문제를 만들지 못했어요.");
       s.questions = qs; s.idx = 0; s.picks = new Array(qs.length).fill(null);
-      s.correct = 0; s.wrong = 0;
+      s.correct = 0; s.wrong = 0; s.graded = false;
       s.meta.asked = s.meta.asked.concat(qs.map(q => q.question));
       renderQuestion();
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (e) {
-      btn.disabled = false; btn.textContent = "🔄 같은 범위로 새 10문제";
+      btn.disabled = false; btn.textContent = "🔄 같은 범위로 새 " + Q_COUNT + "문제";
       toast("새 문제 실패 · " + e.message);
     }
   }
