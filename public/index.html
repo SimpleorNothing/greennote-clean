@@ -132,9 +132,6 @@
   .qz-rbtn.primary:disabled{opacity:.6;cursor:default}
   .qz-rbtn.ghost{border:1.5px solid var(--border);background:var(--bg);color:var(--muted)}
   .qz-rbtn.ghost:hover{border-color:var(--brand);color:var(--brand)}
-  .qz-rbtn.save{border:1.5px solid var(--brand);background:var(--bg);color:var(--brand)}
-  .qz-rbtn.save:hover:not(:disabled){background:rgba(18,87,214,.06)}
-  .qz-rbtn.save:disabled{border-color:var(--ok);color:var(--ok);background:var(--ok-bg);cursor:default}
 
   @media(max-width:640px){ body{padding:32px 16px 96px;} h1{font-size:24px;} .qz-foot{padding:14px 16px 18px} }
 </style>
@@ -323,9 +320,10 @@ const greennoteQuiz = (function () {
           subject: data.subject || "", scope: data.scope || "",
           summary: data.summary || "", keywords: data.keywords || [],
           level, asked: qs.map(q => q.question),
-          blob, saved: false, // 풀이 완료 후 R2 저장용
+          blob, saved: false,
         },
       };
+      saveBoardImage(); // 업로드한 판서를 자동 저장(백그라운드)한 뒤 출제
       renderQuestion();
     } catch (e) {
       area.innerHTML = '<div class="qz-err">문제 생성 실패 · ' + esc(e.message) + "</div>"
@@ -452,8 +450,8 @@ const greennoteQuiz = (function () {
   function mapSubject(t) { t = "" + (t || ""); return SUBJECT_KEYS.find(k => t.includes(k)) || "기타"; }
   function todayStr() { const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
 
-  // 풀이를 마친 판서 이미지를 R2(api/image)에 저장하고 index.json에 메타데이터를 추가한다.
-  // ※ 한 번만 저장(새 문제로 이어 풀어도 중복 저장하지 않음)
+  // 업로드한 판서 이미지를 R2(api/image)에 저장하고 index.json에 메타데이터를 추가한다.
+  // 출제 직후 자동 호출 · 한 번만 저장(새 문제로 이어 풀어도 중복 저장하지 않음)
   async function saveBoardImage() {
     if (!s || s.meta.saved || !s.meta.blob) return;
     s.meta.saved = true; // 낙관적 잠금(중복 방지)
@@ -510,21 +508,10 @@ const greennoteQuiz = (function () {
       + "</div>"
       + '<div class="qz-review">' + review + "</div>"
       + '<div class="qz-result-actions">'
-        + '<button class="qz-rbtn save" id="qzSave">💾 판서 저장하고 홈으로</button>'
         + '<button class="qz-rbtn primary" id="qzMore">🔄 같은 범위로 새 ' + total + "문제</button>"
-        + '<button class="qz-rbtn ghost" onclick="quizReset()">저장 안 하고 홈으로</button>'
+        + '<button class="qz-rbtn ghost" onclick="quizReset()">홈으로</button>'
       + "</div>";
     document.getElementById("qzMore").addEventListener("click", loadMore);
-
-    // 저장하기 → R2 저장 후 홈(저장된 판서 갤러리)으로 이동
-    const saveBtn = document.getElementById("qzSave");
-    saveBtn.addEventListener("click", async () => {
-      if (s.meta.saved) { goHome(); return; }
-      saveBtn.disabled = true; saveBtn.textContent = "저장 중…";
-      await saveBoardImage();
-      if (s.meta.saved) { goHome(); }
-      else { saveBtn.disabled = false; saveBtn.textContent = "💾 판서 저장하고 홈으로"; }
-    });
   }
 
   async function loadMore() {
